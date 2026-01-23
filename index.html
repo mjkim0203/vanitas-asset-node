@@ -3,42 +3,76 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VANITAS: ACCESS NODE</title>
+    <title>VANITAS ASSET NODE</title>
     <style>
-        /* --- [기본 스타일] --- */
-        body { font-family: 'Courier New', monospace; margin: 0; padding: 0; background: #f4f4f4; color: #111; overflow-x: hidden; }
-        
-        /* --- [화면 1: 입장 페이지 (Login Screen)] --- */
+        /* --- [1. 기본 스타일 & 폰트] --- */
+        :root {
+            --bg-color: #f4f4f4;
+            --text-color: #111;
+            --accent-color: #000;
+            --font-main: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            --font-mono: 'Courier New', Courier, monospace;
+        }
+
+        body { margin: 0; font-family: var(--font-main); background-color: var(--bg-color); color: var(--text-color); overflow-x: hidden; }
+
+        /* --- [추가된 스타일: 로그인 화면] --- */
         #login-screen {
             position: fixed; top: 0; left: 0; width: 100%; height: 100vh;
-            background: #f4f4f4;
+            background: var(--bg-color);
             display: flex; flex-direction: column; justify-content: center; align-items: center;
-            z-index: 100;
+            z-index: 999; /* 제일 위에 표시 */
         }
         .login-box { text-align: center; width: 80%; max-width: 300px; }
         .logo-text { font-size: 2rem; font-weight: bold; margin-bottom: 40px; letter-spacing: -2px; }
-        
-        /* --- [화면 2: 경매 페이지 (Auction Screen)] --- */
-        #auction-screen { display: none; padding: 20px; } /* 처음에는 숨김 처리 */
-        
-        .auction-box { background: white; padding: 20px; border: 1px solid black; max-width: 400px; margin: 0 auto; box-shadow: 5px 5px 0px rgba(0,0,0,0.1); }
-        h2 { border-bottom: 2px solid black; padding-bottom: 10px; font-size: 1.2rem; }
-        .price-display { font-size: 1.5rem; font-weight: bold; margin: 20px 0; text-align: center; }
-        
-        /* 공통 인풋 & 버튼 스타일 */
-        input { width: 90%; padding: 15px; margin-bottom: 15px; border: 2px solid #000; background: transparent; font-family: inherit; font-size: 1rem; text-align: center; outline: none; }
-        input:focus { background: #fff; }
-        
-        .btn { width: 100%; padding: 15px; background: black; color: white; font-size: 1rem; cursor: pointer; border: none; font-weight: bold; transition: 0.2s; }
-        .btn:active { transform: scale(0.98); }
-        
-        .rank-list { list-style: none; padding: 0; margin-top: 20px; border-top: 1px solid #ccc; }
-        .rank-item { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px dashed #ddd; font-size: 0.9rem; }
-        .rank-item.top { color: red; font-weight: bold; }
-        
-        /* 사용자 뱃지 */
-        .user-badge { display: inline-block; background: #000; color: #fff; padding: 2px 5px; font-size: 0.8rem; margin-bottom: 10px; }
+        .login-input { width: 100%; padding: 15px; margin-bottom: 15px; border: 2px solid #000; background: transparent; font-family: var(--font-mono); font-size: 1rem; text-align: center; outline: none; box-sizing: border-box;}
+        .login-input:focus { background: #fff; }
 
+        /* --- [기존 스타일: 메인 화면 (처음엔 숨김)] --- */
+        #main-interface { display: none; }
+
+        /* 헤더 */
+        header { padding: 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--text-color); position: sticky; top: 0; background: var(--bg-color); z-index: 10; }
+        .logo { font-weight: bold; font-size: 1.2rem; letter-spacing: -1px; }
+        .user-info { font-family: var(--font-mono); font-size: 0.9rem; font-weight: bold; } /* 유저 이름 표시용 */
+
+        /* 가로 스크롤 메인 */
+        .scroll-container { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; padding: 20px; gap: 15px; height: 80vh; align-items: center; -webkit-overflow-scrolling: touch; }
+        .scroll-container::-webkit-scrollbar { display: none; }
+        .card { flex: 0 0 85vw; max-width: 400px; height: 70vh; scroll-snap-align: center; background: white; border: 1px solid #ccc; display: flex; flex-direction: column; cursor: pointer; transition: transform 0.2s; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+        .card:active { transform: scale(0.98); }
+        .card-img { flex: 3; background-color: #eee; background-size: cover; background-position: center; position: relative; }
+        .card-info { flex: 1; padding: 20px; display: flex; flex-direction: column; justify-content: center; }
+        .item-title { font-size: 1.2rem; font-weight: bold; margin-bottom: 5px; }
+        .item-price { font-family: var(--font-mono); font-size: 1.1rem; color: #555; }
+
+        /* 상세 페이지 (모달) */
+        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 100; display: none; flex-direction: column; overflow-y: auto; }
+        .modal.active { display: flex; }
+        .modal-header { padding: 15px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; }
+        .close-btn { font-size: 1.5rem; cursor: pointer; background: none; border: none; }
+        .modal-content { display: flex; flex-direction: column; height: 100%; }
+        @media (min-width: 768px) { .modal-content { flex-direction: row; } .left-panel, .right-panel { flex: 1; overflow-y: auto; } }
+        
+        .left-panel { padding: 20px; }
+        .detail-img { width: 100%; height: 300px; background-color: #eee; margin-bottom: 20px; object-fit: cover; }
+        .detail-desc { font-size: 0.95rem; line-height: 1.6; color: #444; margin-top: 20px; border-top: 1px solid #eee; padding-top: 20px; }
+        
+        .right-panel { background: #fafafa; border-top: 2px solid #000; padding: 20px; display: flex; flex-direction: column; }
+        .timer-bar-container { width: 100%; height: 4px; background: #ddd; margin-bottom: 20px; }
+        .timer-bar { height: 100%; background: black; width: 100%; }
+        
+        .ranking-list { list-style: none; padding: 0; margin: 0; }
+        .ranking-item { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #eee; font-family: var(--font-mono); font-size: 0.9rem; }
+        .ranking-item.top { font-weight: bold; font-size: 1.1rem; color: var(--accent-color); }
+        
+        /* 버튼 스타일 */
+        .action-buttons { padding: 20px; display: flex; gap: 10px; background: white; border-top: 1px solid #ddd; position: sticky; bottom: 0; }
+        .btn { flex: 1; padding: 15px; border: 1px solid black; font-weight: bold; cursor: pointer; text-align: center; font-size: 1rem; transition: 0.2s; }
+        .btn:active { transform: scale(0.95); }
+        .btn-black { background: black; color: white; }
+        .btn-white { background: white; color: black; }
+        
         .glitch { animation: glitch 0.1s linear; }
         @keyframes glitch { 0% { transform: translate(0); } 20% { transform: translate(-2px, 2px); } 40% { transform: translate(-2px, -2px); } 60% { transform: translate(2px, 2px); } 80% { transform: translate(2px, -2px); } 100% { transform: translate(0); } }
     </style>
@@ -48,36 +82,68 @@
     <div id="login-screen">
         <div class="login-box">
             <div class="logo-text">VANITAS<br>ASSET NODE</div>
-            <p style="font-size: 0.8rem; margin-bottom: 20px;">ENTER YOUR ID TO ACCESS</p>
-            <input type="text" id="login-input" placeholder="NICKNAME">
-            <button class="btn" id="enter-btn">ENTER NODE</button>
+            <p style="font-size: 0.8rem; margin-bottom: 20px; font-family: 'Courier New';">ENTER YOUR ID TO ACCESS</p>
+            <input type="text" id="login-input" class="login-input" placeholder="NICKNAME">
+            <button class="btn btn-black" id="enter-btn">ENTER NODE</button>
         </div>
     </div>
 
-    <div id="auction-screen">
-        <div class="auction-box" id="auction-ui">
-            <div class="user-badge" id="display-name">USER: ???</div>
-            
-            <h2>ITEM #404: Deleted_Love.txt</h2>
-            
-            <div class="price-display">
-                CURRENT: <span id="current-price">0</span> DZC
+    <div id="main-interface">
+        <header>
+            <div class="logo">VANITAS ASSET NODE</div>
+            <div class="user-info" id="display-name">USER: ???</div>
+        </header>
+
+        <main class="scroll-container" id="card-container">
+            </main>
+
+        <div class="modal" id="detail-modal">
+            <div class="modal-header">
+                <span>AUCTION ROOM #404</span>
+                <button class="close-btn" id="close-btn">×</button>
+            </div>
+            <div class="modal-content">
+                <div class="left-panel">
+                    <img id="modal-img" class="detail-img" src="" alt="Item Image">
+                    <h2 id="modal-title">상품명</h2>
+                    <h3 id="modal-price" style="font-family: 'Courier New';">Loading...</h3>
+                    <div class="detail-desc">
+                        <p><strong>[Artifact Analysis]</strong></p>
+                        <p id="modal-desc">...</p>
+                    </div>
+                </div>
+
+                <div class="right-panel" id="ranking-panel">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+                        <strong>LIVE BIDDING</strong>
+                        <span id="refresh-timer">REALTIME</span>
+                    </div>
+                    <div class="timer-bar-container">
+                        <div class="timer-bar" id="timer-bar"></div>
+                    </div>
+                    
+                    <div class="ranking-header" style="font-size:0.8rem; color:#888; margin-bottom:10px;">
+                        <span>RANK / BIDDER</span>
+                        <span style="float:right">PRICE (DZC)</span>
+                    </div>
+                    <ul class="ranking-list" id="ranking-list">
+                        </ul>
+                </div>
             </div>
             
-            <button class="btn" id="bid-btn">BID (+1,000 DZC)</button>
-
-            <h3 style="font-size: 1rem; margin-top: 30px;">LIVE RANKING (Realtime)</h3>
-            <ul class="rank-list" id="ranking-board">
-                </ul>
+            <div class="action-buttons">
+                <button class="btn btn-white" id="skip-btn">SKIP</button>
+                <button class="btn btn-black" id="bid-btn">BID (+1000)</button>
+            </div>
         </div>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
-        import { getDatabase, ref, onValue, set, get, update } 
+        import { getDatabase, ref, onValue, set, get, update, off } 
         from "https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js";
 
-        // ★★★ 기존에 쓰시던 Firebase 설정값을 여기에 다시 넣어주세요! ★★★
+        // ★★★ 여기에 본인의 Firebase 설정값을 넣어주세요! ★★★
         const firebaseConfig = {
             apiKey: "AIzaSyD...", 
             authDomain: "your-project.firebaseapp.com",
@@ -88,87 +154,121 @@
             appId: "1:12345678:web:..."
         };
 
+        // 앱 초기화
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
-        const ITEM_ID = "item_404"; 
-        const itemRef = ref(db, 'auctions/' + ITEM_ID);
 
-        // --- [전역 변수: 사용자 닉네임 저장용] ---
+        // --- [1. 데이터 및 변수] ---
+        const items = [
+            { id: "item_1", title: "Deleted_Love_Letter.txt", initialPrice: 500, img: "https://via.placeholder.com/400x400/333/fff?text=TXT", desc: "전송되지 못하고 휴지통으로 들어간 4kb 텍스트 파일." },
+            { id: "item_2", title: "Broken Pixel #FF0042", initialPrice: 12000, img: "https://via.placeholder.com/400x400/F00/fff?text=PIXEL", desc: "모니터 구석에서 영원히 붉게 빛나는 불량 화소." },
+            { id: "item_3", title: "Untitled_Project_Final_v22", initialPrice: 8500, img: "https://via.placeholder.com/400x400/000/fff?text=PSD", desc: "클라이언트에게 거절당한 22번째 시안." },
+            { id: "item_4", title: "Glitch Sound_04.wav", initialPrice: 450, img: "https://via.placeholder.com/400x400/555/fff?text=WAV", desc: "녹음 중 발생한 0.5초의 노이즈." }
+        ];
+
         let currentUser = "";
+        let currentItemId = null; // 현재 열려있는 모달의 아이템 ID
 
-        // --- [1. 입장(Login) 로직] ---
+        // --- [2. 로그인 로직] ---
         const loginScreen = document.getElementById("login-screen");
-        const auctionScreen = document.getElementById("auction-screen");
+        const mainInterface = document.getElementById("main-interface");
         const loginInput = document.getElementById("login-input");
         const enterBtn = document.getElementById("enter-btn");
 
-        // 엔터 버튼 클릭 시
         enterBtn.addEventListener("click", () => {
             const name = loginInput.value.trim();
             if (name) {
-                currentUser = name; // 닉네임 변수에 저장
+                currentUser = name;
                 document.getElementById("display-name").innerText = "USER: " + currentUser;
-                
-                // 화면 전환 (입장화면 숨김 -> 경매화면 표시)
                 loginScreen.style.display = "none";
-                auctionScreen.style.display = "block";
+                mainInterface.style.display = "block";
             } else {
                 alert("닉네임을 입력해주세요.");
             }
         });
 
-        // --- [2. 실시간 데이터 연동 (기존 로직 유지)] ---
-        onValue(itemRef, (snapshot) => {
-            const data = snapshot.val();
-            if (data) {
-                updateUI(data);
-            } else {
-                set(itemRef, { price: 0, topBidder: "System", history: [] });
-            }
+        // --- [3. 메인 화면 카드 생성] ---
+        const container = document.getElementById('card-container');
+        items.forEach(item => {
+            const card = document.createElement('div');
+            card.className = 'card';
+            card.innerHTML = `
+                <div class="card-img" style="background-image: url('${item.img}')"></div>
+                <div class="card-info">
+                    <div class="item-title">${item.title}</div>
+                    <div class="item-price">OPEN AUCTION</div>
+                </div>
+            `;
+            card.onclick = () => openModal(item);
+            container.appendChild(card);
         });
 
-        function updateUI(data) {
-            const priceEl = document.getElementById("current-price");
-            const board = document.getElementById("ranking-board");
-            const box = document.getElementById("auction-ui");
+        // --- [4. 모달 & Firebase 실시간 로직] ---
+        const modal = document.getElementById('detail-modal');
+        const rankingPanel = document.getElementById('ranking-panel');
 
-            priceEl.innerText = data.price.toLocaleString();
+        function openModal(item) {
+            currentItemId = item.id; // 현재 보고 있는 아이템 ID 저장
 
-            box.classList.remove("glitch");
-            void box.offsetWidth; 
-            box.classList.add("glitch");
+            // UI 세팅
+            document.getElementById('modal-title').innerText = item.title;
+            document.getElementById('modal-img').src = item.img;
+            document.getElementById('modal-desc').innerText = item.desc;
+            modal.classList.add('active');
 
-            board.innerHTML = "";
-            const history = data.history ? Object.values(data.history) : [];
-            const recentBids = history.slice(-5).reverse();
-
-            recentBids.forEach((bid, index) => {
-                const li = document.createElement("li");
-                li.className = index === 0 ? "rank-item top" : "rank-item";
-                li.innerHTML = `<span>${index + 1}. ${bid.name}</span><span>${bid.amount.toLocaleString()} DZC</span>`;
-                board.appendChild(li);
+            // ★ Firebase 리스너 연결 (이 아이템의 데이터만 구독)
+            const itemRef = ref(db, 'auctions/' + currentItemId);
+            
+            onValue(itemRef, (snapshot) => {
+                const data = snapshot.val();
+                if (data) {
+                    updateModalUI(data);
+                } else {
+                    // 데이터가 없으면 초기화 (최초 1회)
+                    set(itemRef, {
+                        price: item.initialPrice,
+                        topBidder: "System",
+                        history: []
+                    });
+                }
             });
+
+            // 타이머 바 애니메이션 (시각 효과용)
+            startVisualTimer();
         }
 
-        // --- [3. 입찰 로직 수정 (저장된 닉네임 사용)] ---
-        const bidBtn = document.getElementById("bid-btn");
-        
-        bidBtn.addEventListener("click", () => {
-            // 닉네임이 없으면(비정상 접근) 실행 안함
-            if(!currentUser) return; 
+        function closeModal() {
+            modal.classList.remove('active');
+            
+            // ★ Firebase 리스너 해제 (데이터 낭비 방지)
+            if (currentItemId) {
+                off(ref(db, 'auctions/' + currentItemId));
+                currentItemId = null;
+            }
+        }
 
+        // 버튼 이벤트 연결
+        document.getElementById('close-btn').onclick = closeModal;
+        document.getElementById('skip-btn').onclick = closeModal;
+
+        // --- [5. 입찰 기능] ---
+        document.getElementById('bid-btn').onclick = () => {
+            if (!currentItemId || !currentUser) return;
+
+            const itemRef = ref(db, 'auctions/' + currentItemId);
+            
             get(itemRef).then((snapshot) => {
                 if (snapshot.exists()) {
                     const currentData = snapshot.val();
                     const newPrice = currentData.price + 1000;
                     let currentHistory = currentData.history || [];
-                    
+
                     const newBid = {
-                        name: currentUser, // ★ 여기서 저장된 닉네임을 사용합니다
+                        name: currentUser, // 내 닉네임
                         amount: newPrice,
                         time: Date.now()
                     };
-                    
+
                     update(itemRef, {
                         price: newPrice,
                         topBidder: currentUser,
@@ -176,7 +276,51 @@
                     });
                 }
             });
-        });
+        };
+
+        // --- [6. UI 업데이트 (Firebase 데이터 기반)] ---
+        function updateModalUI(data) {
+            // 가격 업데이트
+            document.getElementById('modal-price').innerText = data.price.toLocaleString() + " DZC";
+
+            // 글리치 효과
+            rankingPanel.classList.remove("glitch");
+            void rankingPanel.offsetWidth;
+            rankingPanel.classList.add("glitch");
+
+            // 랭킹 리스트 업데이트
+            const list = document.getElementById('ranking-list');
+            list.innerHTML = "";
+            
+            const history = data.history ? Object.values(data.history) : [];
+            // 최신순 5명
+            const recentBids = history.slice(-5).reverse();
+
+            recentBids.forEach((bid, index) => {
+                const li = document.createElement("li");
+                li.className = index === 0 ? "ranking-item top" : "ranking-item";
+                li.innerHTML = `
+                    <span>${index + 1}. ${bid.name}</span>
+                    <span>${bid.amount.toLocaleString()} DZC</span>
+                `;
+                list.appendChild(li);
+            });
+        }
+
+        // --- [7. 시각적 타이머 (데이터와 무관한 연출)] ---
+        function startVisualTimer() {
+            const bar = document.getElementById('timer-bar');
+            let width = 100;
+            const interval = setInterval(() => {
+                if(!modal.classList.contains('active')) {
+                    clearInterval(interval);
+                    return;
+                }
+                width -= 1; 
+                if(width < 0) width = 100;
+                bar.style.width = width + "%";
+            }, 100); // 10초마다 리셋되는 느낌
+        }
 
     </script>
 </body>
