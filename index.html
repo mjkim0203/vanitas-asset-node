@@ -9,34 +9,28 @@
         :root {
             --bg-color: #f4f4f4;
             --text-color: #111;
-            --accent-color: #000;
             --font-main: 'Helvetica Neue', Helvetica, Arial, sans-serif;
             --font-mono: 'Courier New', Courier, monospace;
         }
 
         body { margin: 0; font-family: var(--font-main); background-color: var(--bg-color); color: var(--text-color); overflow-x: hidden; }
 
-        /* --- [추가된 스타일: 로그인 화면] --- */
+        /* --- [로그인 화면] --- */
         #login-screen {
             position: fixed; top: 0; left: 0; width: 100%; height: 100vh;
-            background: var(--bg-color);
-            display: flex; flex-direction: column; justify-content: center; align-items: center;
-            z-index: 999; /* 제일 위에 표시 */
+            background: var(--bg-color); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 999;
         }
         .login-box { text-align: center; width: 80%; max-width: 300px; }
         .logo-text { font-size: 2rem; font-weight: bold; margin-bottom: 40px; letter-spacing: -2px; }
         .login-input { width: 100%; padding: 15px; margin-bottom: 15px; border: 2px solid #000; background: transparent; font-family: var(--font-mono); font-size: 1rem; text-align: center; outline: none; box-sizing: border-box;}
         .login-input:focus { background: #fff; }
 
-        /* --- [기존 스타일: 메인 화면 (처음엔 숨김)] --- */
+        /* --- [메인 인터페이스] --- */
         #main-interface { display: none; }
-
-        /* 헤더 */
         header { padding: 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--text-color); position: sticky; top: 0; background: var(--bg-color); z-index: 10; }
         .logo { font-weight: bold; font-size: 1.2rem; letter-spacing: -1px; }
-        .user-info { font-family: var(--font-mono); font-size: 0.9rem; font-weight: bold; } /* 유저 이름 표시용 */
+        .user-info { font-family: var(--font-mono); font-size: 0.9rem; font-weight: bold; }
 
-        /* 가로 스크롤 메인 */
         .scroll-container { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; padding: 20px; gap: 15px; height: 80vh; align-items: center; -webkit-overflow-scrolling: touch; }
         .scroll-container::-webkit-scrollbar { display: none; }
         .card { flex: 0 0 85vw; max-width: 400px; height: 70vh; scroll-snap-align: center; background: white; border: 1px solid #ccc; display: flex; flex-direction: column; cursor: pointer; transition: transform 0.2s; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
@@ -46,32 +40,49 @@
         .item-title { font-size: 1.2rem; font-weight: bold; margin-bottom: 5px; }
         .item-price { font-family: var(--font-mono); font-size: 1.1rem; color: #555; }
 
-        /* 상세 페이지 (모달) */
+        /* --- [모달 공통] --- */
         .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 100; display: none; flex-direction: column; overflow-y: auto; }
         .modal.active { display: flex; }
         .modal-header { padding: 15px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; }
         .close-btn { font-size: 1.5rem; cursor: pointer; background: none; border: none; }
+        
+        /* [뷰 1: 상세 정보] */
+        #view-detail { display: flex; flex-direction: column; height: 100%; }
         .modal-content { display: flex; flex-direction: column; height: 100%; }
         @media (min-width: 768px) { .modal-content { flex-direction: row; } .left-panel, .right-panel { flex: 1; overflow-y: auto; } }
-        
         .left-panel { padding: 20px; }
         .detail-img { width: 100%; height: 300px; background-color: #eee; margin-bottom: 20px; object-fit: cover; }
         .detail-desc { font-size: 0.95rem; line-height: 1.6; color: #444; margin-top: 20px; border-top: 1px solid #eee; padding-top: 20px; }
-        
         .right-panel { background: #fafafa; border-top: 2px solid #000; padding: 20px; display: flex; flex-direction: column; }
         .timer-bar-container { width: 100%; height: 4px; background: #ddd; margin-bottom: 20px; }
         .timer-bar { height: 100%; background: black; width: 100%; }
-        
         .ranking-list { list-style: none; padding: 0; margin: 0; }
         .ranking-item { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #eee; font-family: var(--font-mono); font-size: 0.9rem; }
-        .ranking-item.top { font-weight: bold; font-size: 1.1rem; color: var(--accent-color); }
-        
-        /* 버튼 스타일 */
-        .action-buttons { padding: 20px; display: flex; gap: 10px; background: white; border-top: 1px solid #ddd; position: sticky; bottom: 0; }
+        .ranking-item.top { font-weight: bold; font-size: 1.1rem; color: #000; }
+        .action-buttons { padding: 20px; display: flex; gap: 10px; background: white; border-top: 1px solid #ddd; position: sticky; bottom: 0; margin-top: auto;}
         .btn { flex: 1; padding: 15px; border: 1px solid black; font-weight: bold; cursor: pointer; text-align: center; font-size: 1rem; transition: 0.2s; }
-        .btn:active { transform: scale(0.95); }
         .btn-black { background: black; color: white; }
         .btn-white { background: white; color: black; }
+
+        /* [뷰 2: 게임 화면 (슬라이더)] */
+        #view-game { display: none; flex-direction: column; align-items: center; justify-content: center; height: 100%; padding: 20px; text-align: center; }
+        .game-img { width: 200px; height: 200px; object-fit: cover; margin-bottom: 30px; border: 1px solid #ccc; }
+        .game-question { font-size: 1.1rem; font-weight: bold; margin-bottom: 40px; }
+        
+        /* 슬라이더 커스텀 */
+        .slider-container { width: 100%; max-width: 400px; margin-bottom: 20px; }
+        input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 20px; width: 5px; background: #000; cursor: pointer; margin-top: -8px; }
+        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; cursor: pointer; background: #000; }
+        
+        .slider-labels { display: flex; justify-content: space-between; width: 100%; max-width: 400px; font-family: var(--font-mono); font-size: 0.8rem; color: #888; margin-bottom: 40px; }
+        .current-val-display { font-family: var(--font-mono); font-size: 1.5rem; font-weight: bold; margin-bottom: 10px; }
+
+        /* [뷰 3: 결과 화면] */
+        #view-result { display: none; flex-direction: column; align-items: center; justify-content: center; height: 100%; padding: 40px; text-align: center; }
+        .result-title { font-size: 1.2rem; font-weight: bold; margin-bottom: 20px; }
+        .result-desc { font-size: 0.9rem; color: #555; margin-bottom: 40px; line-height: 1.5; }
+        .result-rank { font-size: 1.5rem; font-weight: bold; margin-bottom: 10px; }
         
         .glitch { animation: glitch 0.1s linear; }
         @keyframes glitch { 0% { transform: translate(0); } 20% { transform: translate(-2px, 2px); } 40% { transform: translate(-2px, -2px); } 60% { transform: translate(2px, 2px); } 80% { transform: translate(2px, -2px); } 100% { transform: translate(0); } }
@@ -99,42 +110,93 @@
 
         <div class="modal" id="detail-modal">
             <div class="modal-header">
-                <span>AUCTION ROOM #404</span>
+                <span id="room-title">AUCTION ROOM #404</span>
                 <button class="close-btn" id="close-btn">×</button>
             </div>
-            <div class="modal-content">
-                <div class="left-panel">
-                    <img id="modal-img" class="detail-img" src="" alt="Item Image">
-                    <h2 id="modal-title">상품명</h2>
-                    <h3 id="modal-price" style="font-family: 'Courier New';">Loading...</h3>
-                    <div class="detail-desc">
-                        <p><strong>[Artifact Analysis]</strong></p>
-                        <p id="modal-desc">...</p>
+            
+            <div id="view-detail">
+                <div class="modal-content">
+                    <div class="left-panel">
+                        <img id="modal-img" class="detail-img" src="" alt="Item Image">
+                        <h2 id="modal-title">상품명</h2>
+                        <h3 id="modal-price" style="font-family: 'Courier New';">Loading...</h3>
+                        <div class="detail-desc">
+                            <p><strong>[Artifact Analysis]</strong></p>
+                            <p id="modal-desc">...</p>
+                        </div>
                     </div>
+
+                    <div class="right-panel" id="ranking-panel">
+                        <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+                            <strong>LIVE BIDDING</strong>
+                            <span id="refresh-timer">REALTIME</span>
+                        </div>
+                        <div class="timer-bar-container">
+                            <div class="timer-bar" id="timer-bar"></div>
+                        </div>
+                        
+                        <div class="ranking-header" style="font-size:0.8rem; color:#888; margin-bottom:10px;">
+                            <span>RANK / BIDDER</span>
+                            <span style="float:right">PRICE (DZC)</span>
+                        </div>
+                        <ul class="ranking-list" id="ranking-list"></ul>
+                    </div>
+                </div>
+                
+                <div class="action-buttons">
+                    <button class="btn btn-white" id="skip-btn">SKIP</button>
+                    <button class="btn btn-black" id="start-game-btn">BID (GAME)</button>
+                </div>
+            </div>
+
+            <div id="view-game">
+                <div style="width:100%; text-align:left; font-family:'Courier New'; margin-bottom:20px;"># Category: Auction</div>
+                
+                <img id="game-img" class="game-img" src="" alt="Puzzle">
+                
+                <div class="game-question">얼마를 투자하시겠습니까?</div>
+                
+                <div class="current-val-display"><span id="slider-val">0</span> DZC</div>
+
+                <div class="slider-container">
+                    <input type="range" min="0" max="10000" value="0" id="bid-slider">
+                </div>
+                
+                <div class="slider-labels">
+                    <span id="slider-min">0</span>
+                    <span>Your Value</span>
+                    <span id="slider-max">10,000</span>
                 </div>
 
-                <div class="right-panel" id="ranking-panel">
-                    <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
-                        <strong>LIVE BIDDING</strong>
-                        <span id="refresh-timer">REALTIME</span>
-                    </div>
-                    <div class="timer-bar-container">
-                        <div class="timer-bar" id="timer-bar"></div>
-                    </div>
-                    
-                    <div class="ranking-header" style="font-size:0.8rem; color:#888; margin-bottom:10px;">
-                        <span>RANK / BIDDER</span>
-                        <span style="float:right">PRICE (DZC)</span>
-                    </div>
-                    <ul class="ranking-list" id="ranking-list">
-                        </ul>
+                <div style="margin-top: 30px; font-size: 0.8rem; color:#888;">
+                    IEAA의 감정가와 가장 유사한 가격을 제시한 참여자가 낙찰하게 됩니다.
+                </div>
+
+                <div class="action-buttons" style="width:100%; border:none;">
+                    <button class="btn btn-black" id="submit-bid-btn">결정 (SUBMIT)</button>
                 </div>
             </div>
-            
-            <div class="action-buttons">
-                <button class="btn btn-white" id="skip-btn">SKIP</button>
-                <button class="btn btn-black" id="bid-btn">BID (+1000)</button>
+
+            <div id="view-result">
+                <div style="font-family:'Courier New'; font-size:1.2rem; margin-bottom:30px;">114 Bidding Service</div>
+                
+                <div class="result-title">입찰에 성공하였습니다.</div>
+                
+                <div class="result-rank">
+                    <span id="result-user-name">___</span>님은<br>
+                    현재 <span style="color:red">1등</span>입니다.
+                </div>
+
+                <div class="result-desc">
+                    Congratulations, your bid was successful.<br>
+                    You are currently ranked 1st based on the value.
+                </div>
+                
+                <button class="btn btn-white" id="back-to-room-btn" style="max-width:300px;">경매장으로 돌아가기</button>
+                <br>
+                <button class="btn btn-white" id="back-to-home-btn" style="max-width:300px; border:none; text-decoration:underline;">첫 화면으로</button>
             </div>
+
         </div>
     </div>
 
@@ -154,11 +216,10 @@
             appId: "1:12345678:web:..."
         };
 
-        // 앱 초기화
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        // --- [1. 데이터 및 변수] ---
+        // --- [데이터] ---
         const items = [
             { id: "item_1", title: "Deleted_Love_Letter.txt", initialPrice: 500, img: "https://via.placeholder.com/400x400/333/fff?text=TXT", desc: "전송되지 못하고 휴지통으로 들어간 4kb 텍스트 파일." },
             { id: "item_2", title: "Broken Pixel #FF0042", initialPrice: 12000, img: "https://via.placeholder.com/400x400/F00/fff?text=PIXEL", desc: "모니터 구석에서 영원히 붉게 빛나는 불량 화소." },
@@ -167,27 +228,23 @@
         ];
 
         let currentUser = "";
-        let currentItemId = null; // 현재 열려있는 모달의 아이템 ID
+        let currentItemId = null;
+        let currentItemPrice = 0;
 
-        // --- [2. 로그인 로직] ---
-        const loginScreen = document.getElementById("login-screen");
-        const mainInterface = document.getElementById("main-interface");
-        const loginInput = document.getElementById("login-input");
-        const enterBtn = document.getElementById("enter-btn");
-
-        enterBtn.addEventListener("click", () => {
-            const name = loginInput.value.trim();
+        // --- [로그인] ---
+        document.getElementById("enter-btn").addEventListener("click", () => {
+            const name = document.getElementById("login-input").value.trim();
             if (name) {
                 currentUser = name;
                 document.getElementById("display-name").innerText = "USER: " + currentUser;
-                loginScreen.style.display = "none";
-                mainInterface.style.display = "block";
+                document.getElementById("login-screen").style.display = "none";
+                document.getElementById("main-interface").style.display = "block";
             } else {
                 alert("닉네임을 입력해주세요.");
             }
         });
 
-        // --- [3. 메인 화면 카드 생성] ---
+        // --- [메인 카드 생성] ---
         const container = document.getElementById('card-container');
         items.forEach(item => {
             const card = document.createElement('div');
@@ -203,125 +260,157 @@
             container.appendChild(card);
         });
 
-        // --- [4. 모달 & Firebase 실시간 로직] ---
+        // --- [모달 관리] ---
         const modal = document.getElementById('detail-modal');
-        const rankingPanel = document.getElementById('ranking-panel');
+        const viewDetail = document.getElementById('view-detail');
+        const viewGame = document.getElementById('view-game');
+        const viewResult = document.getElementById('view-result');
+        const slider = document.getElementById('bid-slider');
+        const sliderVal = document.getElementById('slider-val');
+
+        function switchView(viewName) {
+            viewDetail.style.display = 'none';
+            viewGame.style.display = 'none';
+            viewResult.style.display = 'none';
+
+            if(viewName === 'detail') viewDetail.style.display = 'flex';
+            if(viewName === 'game') viewGame.style.display = 'flex';
+            if(viewName === 'result') viewResult.style.display = 'flex';
+        }
 
         function openModal(item) {
-            currentItemId = item.id; // 현재 보고 있는 아이템 ID 저장
+            currentItemId = item.id;
+            switchView('detail'); // 초기화면은 상세정보
 
-            // UI 세팅
+            // 상세 정보 세팅
             document.getElementById('modal-title').innerText = item.title;
             document.getElementById('modal-img').src = item.img;
             document.getElementById('modal-desc').innerText = item.desc;
+            
+            // 게임 화면 세팅
+            document.getElementById('game-img').src = item.img;
+            
             modal.classList.add('active');
 
-            // ★ Firebase 리스너 연결 (이 아이템의 데이터만 구독)
+            // Firebase 연결
             const itemRef = ref(db, 'auctions/' + currentItemId);
-            
             onValue(itemRef, (snapshot) => {
                 const data = snapshot.val();
                 if (data) {
+                    currentItemPrice = data.price; // 현재 가격 저장
                     updateModalUI(data);
                 } else {
-                    // 데이터가 없으면 초기화 (최초 1회)
-                    set(itemRef, {
-                        price: item.initialPrice,
-                        topBidder: "System",
-                        history: []
-                    });
+                    set(itemRef, { price: item.initialPrice, topBidder: "System", history: [] });
                 }
             });
-
-            // 타이머 바 애니메이션 (시각 효과용)
             startVisualTimer();
         }
 
         function closeModal() {
             modal.classList.remove('active');
-            
-            // ★ Firebase 리스너 해제 (데이터 낭비 방지)
             if (currentItemId) {
                 off(ref(db, 'auctions/' + currentItemId));
                 currentItemId = null;
             }
         }
 
-        // 버튼 이벤트 연결
-        document.getElementById('close-btn').onclick = closeModal;
-        document.getElementById('skip-btn').onclick = closeModal;
-
-        // --- [5. 입찰 기능] ---
-        document.getElementById('bid-btn').onclick = () => {
-            if (!currentItemId || !currentUser) return;
-
-            const itemRef = ref(db, 'auctions/' + currentItemId);
+        // --- [게임 & 슬라이더 로직] ---
+        document.getElementById('start-game-btn').onclick = () => {
+            // 게임 화면으로 전환
+            switchView('game');
             
+            // 슬라이더 범위 설정 (현재 가격 ~ 현재 가격의 3배)
+            const minBid = currentItemPrice;
+            const maxBid = Math.floor(currentItemPrice * 3) + 1000;
+            
+            slider.min = minBid;
+            slider.max = maxBid;
+            slider.value = minBid;
+            
+            document.getElementById('slider-min').innerText = minBid.toLocaleString();
+            document.getElementById('slider-max').innerText = maxBid.toLocaleString();
+            sliderVal.innerText = Number(slider.value).toLocaleString();
+        };
+
+        // 슬라이더 움직일 때 숫자 변경
+        slider.oninput = function() {
+            sliderVal.innerText = Number(this.value).toLocaleString();
+        }
+
+        // --- [입찰 제출 & 결과] ---
+        document.getElementById('submit-bid-btn').onclick = () => {
+            const bidAmount = parseInt(slider.value);
+            
+            // Firebase 업데이트
+            const itemRef = ref(db, 'auctions/' + currentItemId);
             get(itemRef).then((snapshot) => {
                 if (snapshot.exists()) {
                     const currentData = snapshot.val();
-                    const newPrice = currentData.price + 1000;
                     let currentHistory = currentData.history || [];
-
+                    
                     const newBid = {
-                        name: currentUser, // 내 닉네임
-                        amount: newPrice,
+                        name: currentUser,
+                        amount: bidAmount,
                         time: Date.now()
                     };
-
+                    
+                    // 가격 갱신 (항상 내가 쓴 가격이 됨)
                     update(itemRef, {
-                        price: newPrice,
+                        price: bidAmount,
                         topBidder: currentUser,
                         history: [...currentHistory, newBid]
                     });
+
+                    // 결과 화면 보여주기
+                    showResult();
                 }
             });
         };
 
-        // --- [6. UI 업데이트 (Firebase 데이터 기반)] ---
+        function showResult() {
+            document.getElementById('result-user-name').innerText = currentUser;
+            switchView('result');
+        }
+
+        // --- [네비게이션 버튼] ---
+        document.getElementById('close-btn').onclick = closeModal;
+        document.getElementById('skip-btn').onclick = closeModal;
+        
+        document.getElementById('back-to-room-btn').onclick = () => {
+            switchView('detail'); // 다시 경매장(상세)으로
+        };
+        document.getElementById('back-to-home-btn').onclick = closeModal; // 첫 화면(메인 리스트)으로
+
+        // --- [UI 유틸] ---
         function updateModalUI(data) {
-            // 가격 업데이트
             document.getElementById('modal-price').innerText = data.price.toLocaleString() + " DZC";
+            const panel = document.getElementById('ranking-panel');
+            panel.classList.remove("glitch");
+            void panel.offsetWidth;
+            panel.classList.add("glitch");
 
-            // 글리치 효과
-            rankingPanel.classList.remove("glitch");
-            void rankingPanel.offsetWidth;
-            rankingPanel.classList.add("glitch");
-
-            // 랭킹 리스트 업데이트
             const list = document.getElementById('ranking-list');
             list.innerHTML = "";
-            
             const history = data.history ? Object.values(data.history) : [];
-            // 최신순 5명
             const recentBids = history.slice(-5).reverse();
 
             recentBids.forEach((bid, index) => {
                 const li = document.createElement("li");
                 li.className = index === 0 ? "ranking-item top" : "ranking-item";
-                li.innerHTML = `
-                    <span>${index + 1}. ${bid.name}</span>
-                    <span>${bid.amount.toLocaleString()} DZC</span>
-                `;
+                li.innerHTML = `<span>${index + 1}. ${bid.name}</span><span>${bid.amount.toLocaleString()} DZC</span>`;
                 list.appendChild(li);
             });
         }
 
-        // --- [7. 시각적 타이머 (데이터와 무관한 연출)] ---
         function startVisualTimer() {
             const bar = document.getElementById('timer-bar');
             let width = 100;
             const interval = setInterval(() => {
-                if(!modal.classList.contains('active')) {
-                    clearInterval(interval);
-                    return;
-                }
-                width -= 1; 
-                if(width < 0) width = 100;
+                if(!modal.classList.contains('active')) { clearInterval(interval); return; }
+                width -= 1; if(width < 0) width = 100;
                 bar.style.width = width + "%";
-            }, 100); // 10초마다 리셋되는 느낌
+            }, 100);
         }
-
     </script>
 </body>
 </html>
