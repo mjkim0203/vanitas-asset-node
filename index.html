@@ -60,9 +60,14 @@
         .ranking-item { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #eee; font-family: var(--font-mono); font-size: 0.9rem; }
         .ranking-item.top { font-weight: bold; font-size: 1.1rem; color: #000; }
         .action-buttons { padding: 20px; display: flex; gap: 10px; background: white; border-top: 1px solid #ddd; position: sticky; bottom: 0; margin-top: auto;}
+        
+        /* 버튼 스타일 수정 (비활성화 상태 추가) */
         .btn { flex: 1; padding: 15px; border: 1px solid black; font-weight: bold; cursor: pointer; text-align: center; font-size: 1rem; transition: 0.2s; }
         .btn-black { background: black; color: white; }
         .btn-white { background: white; color: black; }
+        
+        /* [NEW] 이미 참여한 버튼 스타일 */
+        .btn-disabled { background: #ccc !important; color: #666 !important; border-color: #ccc !important; cursor: not-allowed; }
 
         /* [뷰 2: 게임 화면 (슬라이더)] */
         #view-game { display: none; flex-direction: column; align-items: center; justify-content: center; height: 100%; padding: 20px; text-align: center; }
@@ -231,6 +236,22 @@
         let currentItemId = null;
         let currentItemPrice = 0;
 
+        // --- [NEW] 참여 이력 관리 함수 (LocalStorage) ---
+        function hasParticipated(itemId) {
+            // 로컬 저장소에서 참여 목록 가져오기
+            const list = JSON.parse(localStorage.getItem('vanitas_participated') || '[]');
+            return list.includes(itemId);
+        }
+
+        function markAsParticipated(itemId) {
+            // 참여 목록에 아이템 ID 추가하고 저장
+            const list = JSON.parse(localStorage.getItem('vanitas_participated') || '[]');
+            if (!list.includes(itemId)) {
+                list.push(itemId);
+                localStorage.setItem('vanitas_participated', JSON.stringify(list));
+            }
+        }
+
         // --- [로그인] ---
         document.getElementById("enter-btn").addEventListener("click", () => {
             const name = document.getElementById("login-input").value.trim();
@@ -267,6 +288,7 @@
         const viewResult = document.getElementById('view-result');
         const slider = document.getElementById('bid-slider');
         const sliderVal = document.getElementById('slider-val');
+        const gameBtn = document.getElementById('start-game-btn'); // 게임 시작 버튼
 
         function switchView(viewName) {
             viewDetail.style.display = 'none';
@@ -280,7 +302,7 @@
 
         function openModal(item) {
             currentItemId = item.id;
-            switchView('detail'); // 초기화면은 상세정보
+            switchView('detail'); 
 
             // 상세 정보 세팅
             document.getElementById('modal-title').innerText = item.title;
@@ -290,6 +312,17 @@
             // 게임 화면 세팅
             document.getElementById('game-img').src = item.img;
             
+            // ★ [NEW] 참여 여부 확인 후 버튼 상태 변경
+            if (hasParticipated(currentItemId)) {
+                gameBtn.innerText = "참여 완료 (COMPLETED)";
+                gameBtn.classList.add("btn-disabled"); // 회색 처리 스타일
+                gameBtn.classList.remove("btn-black");
+            } else {
+                gameBtn.innerText = "BID (GAME)";
+                gameBtn.classList.remove("btn-disabled");
+                gameBtn.classList.add("btn-black");
+            }
+
             modal.classList.add('active');
 
             // Firebase 연결
@@ -297,7 +330,7 @@
             onValue(itemRef, (snapshot) => {
                 const data = snapshot.val();
                 if (data) {
-                    currentItemPrice = data.price; // 현재 가격 저장
+                    currentItemPrice = data.price; 
                     updateModalUI(data);
                 } else {
                     set(itemRef, { price: item.initialPrice, topBidder: "System", history: [] });
@@ -315,11 +348,16 @@
         }
 
         // --- [게임 & 슬라이더 로직] ---
-        document.getElementById('start-game-btn').onclick = () => {
+        gameBtn.onclick = () => {
+            // ★ [NEW] 이미 참여했다면 차단
+            if (hasParticipated(currentItemId)) {
+                alert("이미 경매에 참여한 아이템입니다.");
+                return;
+            }
+
             // 게임 화면으로 전환
             switchView('game');
             
-            // 슬라이더 범위 설정 (현재 가격 ~ 현재 가격의 3배)
             const minBid = currentItemPrice;
             const maxBid = Math.floor(currentItemPrice * 3) + 1000;
             
@@ -332,7 +370,6 @@
             sliderVal.innerText = Number(slider.value).toLocaleString();
         };
 
-        // 슬라이더 움직일 때 숫자 변경
         slider.oninput = function() {
             sliderVal.innerText = Number(this.value).toLocaleString();
         }
@@ -341,7 +378,6 @@
         document.getElementById('submit-bid-btn').onclick = () => {
             const bidAmount = parseInt(slider.value);
             
-            // Firebase 업데이트
             const itemRef = ref(db, 'auctions/' + currentItemId);
             get(itemRef).then((snapshot) => {
                 if (snapshot.exists()) {
@@ -354,14 +390,15 @@
                         time: Date.now()
                     };
                     
-                    // 가격 갱신 (항상 내가 쓴 가격이 됨)
                     update(itemRef, {
                         price: bidAmount,
                         topBidder: currentUser,
                         history: [...currentHistory, newBid]
                     });
 
-                    // 결과 화면 보여주기
+                    // ★ [NEW] 참여 완료 처리 (로컬 저장소에 기록)
+                    markAsParticipated(currentItemId);
+
                     showResult();
                 }
             });
@@ -377,9 +414,16 @@
         document.getElementById('skip-btn').onclick = closeModal;
         
         document.getElementById('back-to-room-btn').onclick = () => {
-            switchView('detail'); // 다시 경매장(상세)으로
+            // 돌아가기 눌렀을 때도 버튼 상태 업데이트를 위해 openModal 로직 일부 재실행
+            // (이미 markAsParticipated가 호출되었으므로 버튼은 비활성화됨)
+            switchView('detail'); 
+            
+            // 버튼 상태 즉시 갱신
+            gameBtn.innerText = "참여 완료 (COMPLETED)";
+            gameBtn.classList.add("btn-disabled");
+            gameBtn.classList.remove("btn-black");
         };
-        document.getElementById('back-to-home-btn').onclick = closeModal; // 첫 화면(메인 리스트)으로
+        document.getElementById('back-to-home-btn').onclick = closeModal; 
 
         // --- [UI 유틸] ---
         function updateModalUI(data) {
