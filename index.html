@@ -19,7 +19,7 @@
         .logo-text { font-size: 2rem; font-weight: bold; margin-bottom: 40px; letter-spacing: -2px; }
         
         /* --- [화면 2: 경매 페이지 (Auction Screen)] --- */
-        #auction-screen { display: none; padding: 20px; } /* 처음에는 숨김 */
+        #auction-screen { display: none; padding: 20px; } /* 처음에는 숨김 처리 */
         
         .auction-box { background: white; padding: 20px; border: 1px solid black; max-width: 400px; margin: 0 auto; box-shadow: 5px 5px 0px rgba(0,0,0,0.1); }
         h2 { border-bottom: 2px solid black; padding-bottom: 10px; font-size: 1.2rem; }
@@ -36,6 +36,7 @@
         .rank-item { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px dashed #ddd; font-size: 0.9rem; }
         .rank-item.top { color: red; font-weight: bold; }
         
+        /* 사용자 뱃지 */
         .user-badge { display: inline-block; background: #000; color: #fff; padding: 2px 5px; font-size: 0.8rem; margin-bottom: 10px; }
 
         .glitch { animation: glitch 0.1s linear; }
@@ -56,6 +57,7 @@
     <div id="auction-screen">
         <div class="auction-box" id="auction-ui">
             <div class="user-badge" id="display-name">USER: ???</div>
+            
             <h2>ITEM #404: Deleted_Love.txt</h2>
             
             <div class="price-display">
@@ -64,7 +66,7 @@
             
             <button class="btn" id="bid-btn">BID (+1,000 DZC)</button>
 
-            <h3 style="font-size: 1rem; margin-top: 30px;">LIVE RANKING</h3>
+            <h3 style="font-size: 1rem; margin-top: 30px;">LIVE RANKING (Realtime)</h3>
             <ul class="rank-list" id="ranking-board">
                 </ul>
         </div>
@@ -75,11 +77,11 @@
         import { getDatabase, ref, onValue, set, get, update } 
         from "https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js";
 
-        // ★★★ 여기에 본인의 Firebase 설정값을 다시 넣어주세요! ★★★
+        // ★★★ 기존에 쓰시던 Firebase 설정값을 여기에 다시 넣어주세요! ★★★
         const firebaseConfig = {
             apiKey: "AIzaSyD...", 
             authDomain: "your-project.firebaseapp.com",
-            databaseURL: "https://your-project-default-rtdb.firebaseio.com",
+            databaseURL: "https://vanitas-auction-default-rtdb.firebaseio.com/",
             projectId: "your-project-id",
             storageBucket: "your-project.appspot.com",
             messagingSenderId: "12345678",
@@ -100,10 +102,11 @@
         const loginInput = document.getElementById("login-input");
         const enterBtn = document.getElementById("enter-btn");
 
+        // 엔터 버튼 클릭 시
         enterBtn.addEventListener("click", () => {
             const name = loginInput.value.trim();
             if (name) {
-                currentUser = name; // 닉네임 저장
+                currentUser = name; // 닉네임 변수에 저장
                 document.getElementById("display-name").innerText = "USER: " + currentUser;
                 
                 // 화면 전환 (입장화면 숨김 -> 경매화면 표시)
@@ -114,7 +117,7 @@
             }
         });
 
-        // --- [2. 실시간 데이터 연동 (이전과 동일)] ---
+        // --- [2. 실시간 데이터 연동 (기존 로직 유지)] ---
         onValue(itemRef, (snapshot) => {
             const data = snapshot.val();
             if (data) {
@@ -147,11 +150,12 @@
             });
         }
 
-        // --- [3. 입찰 로직 (저장된 닉네임 사용)] ---
+        // --- [3. 입찰 로직 수정 (저장된 닉네임 사용)] ---
         const bidBtn = document.getElementById("bid-btn");
         
         bidBtn.addEventListener("click", () => {
-            if(!currentUser) return; // 닉네임 없으면 실행 안함
+            // 닉네임이 없으면(비정상 접근) 실행 안함
+            if(!currentUser) return; 
 
             get(itemRef).then((snapshot) => {
                 if (snapshot.exists()) {
@@ -160,7 +164,7 @@
                     let currentHistory = currentData.history || [];
                     
                     const newBid = {
-                        name: currentUser, // ★ 저장된 닉네임 사용
+                        name: currentUser, // ★ 여기서 저장된 닉네임을 사용합니다
                         amount: newPrice,
                         time: Date.now()
                     };
