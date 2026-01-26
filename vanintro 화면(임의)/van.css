@@ -1,0 +1,256 @@
+:root{
+  --bg:#f3f4f2;         /* 사진 느낌의 살짝 웜한 화이트 */
+  --text:#111;
+  --muted:#8c8c8c;
+  --line:#111;
+  --blue:#1f9ad6;       /* 사진1 왼쪽 파란 바 느낌 */
+  --railW: 220px;
+}
+
+*{ box-sizing:border-box; }
+html,body{ height:100%; }
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--text);
+  font-family: Helvetica, Arial, sans-serif;
+}
+
+.layout{
+  height:100vh;
+  display:grid;
+  grid-template-columns: var(--railW) 1fr;
+}
+
+/* ===== LEFT RAIL ===== */
+.rail{
+  border-right: 2px solid #d9d9d9;
+  background:#fff;
+}
+
+.rail-grid{
+  height:100%;
+  display:grid;
+  grid-template-rows: 110px 1fr 140px; /* top / title area / bottom */
+  position:relative;
+}
+
+.rail-top-meta{
+  padding:14px 12px;
+  border-bottom: 1px solid #e6e6e6;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  font-size:12px;
+  color:#333;
+}
+
+.rail-blue{
+  grid-row: 2 / 3;
+  width: 14px;
+  background: var(--blue);
+  justify-self: start;
+  align-self: stretch;
+}
+
+.rail-title-wrap{
+  grid-row: 2 / 3;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding-left: 14px;      /* 파란 바 공간 */
+  padding-right: 58px;     /* ✅ 메뉴 스트립 공간 확보 */
+  position:relative;
+  z-index: 1;              /* ✅ 제목이 뒤로 깔리지 않게 */
+}
+
+
+/* 세로 타이포(사진1 느낌) */
+.rail-title{
+  margin:0;
+  font-weight:800;
+  letter-spacing: 0.08em;
+  font-size: 44px;
+  line-height:1;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg); /* 위->아래 읽기 */
+  text-transform: uppercase;
+}
+
+.rail-bottom-meta{
+  padding:14px 12px;
+  border-top: 1px solid #e6e6e6;
+  font-size:12px;
+  color:#333;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+
+/* ===== RIGHT MAIN ===== */
+.main{
+  height:100vh;
+  overflow:hidden;
+  display:grid;
+  grid-template-rows: 1fr;   /* ✅ header 없으니 한 줄 */
+}
+
+
+/* ✅ 내부 페이지에서는 패널이 생기도록 클래스 토글 */
+.main.has-panel{
+  grid-template-rows: 64px 1fr 220px;
+}
+
+.header{
+  padding: 14px 18px;
+  display:flex;
+  align-items:center;
+  border-bottom: 1px solid #e6e6e6;
+  background: rgba(255,255,255,0.75);
+  backdrop-filter: blur(6px);
+}
+
+.stage{
+  position:relative;
+  overflow:hidden;
+  /* ✅ 사진이 꽉 차 보이도록 여백 줄이기 */
+  padding: 0;
+  width:100%;
+  height:100%;
+}
+
+/* showcase를 “이미지 프레임”처럼 꽉 차게 */
+.showcase{
+  position:relative;
+  width:100%;
+  height:100%;
+  padding: 0;                 /* ✅ 기존 18px 제거 */
+  display:flex;
+  align-items:stretch;
+  justify-content:stretch;
+}
+
+/* ✅ 배경 이미지를 'contain'이 아니라 꽉 채우기 (cover 느낌) */
+.showcase-bg{
+  width:100%;
+  height:100%;
+  display:block;
+  object-fit: cover;          /* ✅ 핵심 */
+  border-radius: 0;           /* ✅ 모서리 둥글림 제거 */
+  box-shadow: none;           /* ✅ 그림자 제거 */
+}
+
+/* 아이콘 버튼: 배경 이미지 위에 절대 배치 */
+.icon-btn{
+  position:absolute;
+  left: var(--x);
+  top: var(--y);
+  width: var(--w);
+  transform: translate(-50%, -50%) scale(1);
+  border: none;
+  background: transparent;
+  padding:0;
+  cursor:pointer;
+  filter: drop-shadow(0 10px 18px rgba(0,0,0,0.18));
+  transition: transform 180ms ease, filter 180ms ease, opacity 180ms ease;
+  opacity:0.92;
+  z-index: 2;
+}
+
+.icon-btn img{
+  width:100%;
+  height:auto;
+  display:block;
+}
+
+/* ✅ hover 확대 더 확실하게 */
+.icon-btn:hover{
+  transform: translate(-50%, -50%) scale(1.08);
+  filter: drop-shadow(0 16px 30px rgba(0,0,0,0.22));
+  opacity:1;
+}
+
+.icon-btn:active{
+  transform: translate(-50%, -50%) scale(1.03);
+}
+
+/* ✅ HOME에서는 안내 문구도 없애고 싶다 했으니 display none */
+.hint{ display:none; }
+
+/* ✅ 패널(하단 카드) 기본 숨김 */
+.panel{
+  display:none;
+  border-top: 1px solid #e6e6e6;
+  background:#fff;
+  overflow:auto;
+}
+
+/* ✅ 내부 페이지에서만 패널 보이기 */
+.main.has-panel .panel{
+  display:block;
+}
+
+.view{
+  padding: 18px 20px;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.card{
+  border:1px solid #e6e6e6;
+  border-radius: 14px;
+  padding: 14px 16px;
+  background:#fff;
+}
+
+/* ===== LEFT RAIL MENU STRIP (세로 회전 메뉴) ===== */
+.rail-menu{
+  position:absolute;
+  top:0;
+  right:0;
+  bottom:0;
+  width:58px;                      /* 메뉴 스트립 너비 */
+  display:grid;
+  grid-template-rows: repeat(5, 1fr);
+  background:#fff;
+  border-left: 2px solid #d9d9d9;  /* 레퍼런스처럼 칸 분리 */
+  z-index: 3;
+}
+
+/* 메뉴 한 칸 */
+.rail-item{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  text-decoration:none;
+  color:#111;
+  border-top: 1px solid #e6e6e6;
+  opacity:0.65;
+
+  /* ✅ 세로 텍스트 */
+  writing-mode: vertical-rl;
+  transform: rotate(180deg); /* 위->아래 읽히게(원하는 방향이면 바꾸면 됨) */
+
+  font-size:11px;
+  letter-spacing:0.18em;
+  text-transform: uppercase;
+  padding: 10px 0;
+}
+
+.rail-item:first-child{ border-top:none; }
+
+/* active 표시: 사진처럼 '선' 느낌 */
+.rail-item.active{
+  opacity:1;
+  font-weight:700;
+}
+
+.rail-item.active::before{
+  content:"";
+  position:absolute;
+  right:0;
+  top:0;
+  bottom:0;
+  width:6px;
+  background: var(--blue);
+}

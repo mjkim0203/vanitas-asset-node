@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VANITAS ASSET NODE</title>
+  <link rel="stylesheet" href="van.css" />
+</head>
+<body>
+  <div class="layout">
+    <!-- LEFT RAIL (사진1의 세로 정렬 제목 영역) -->
+    <aside class="rail" aria-label="Left title rail">
+      <div class="rail-grid">
+        <div class="rail-top-meta">
+          <div class="rail-mag">THE VANITAS MAGAZINE</div>
+          <div class="rail-page">PAGE 01</div>
+        </div>
+
+        <div class="rail-blue"></div>
+
+        <div class="rail-title-wrap">
+            <div class="rail-menu" aria-label="Left rail navigation">
+  <a class="rail-item" href="#/" data-route="/">HOME</a>
+  <a class="rail-item" href="#/catalog" data-route="/catalog">CATALOG</a>
+  <a class="rail-item" href="#/auction" data-route="/auction">AUCTION ROOM</a>
+  <a class="rail-item" href="#/appraisal" data-route="/appraisal">APPRAISAL</a>
+  <a class="rail-item" href="#/about" data-route="/about">ABOUT</a>
+</div>
+
+          <h1 class="rail-title">VANITAS ASSET NODE</h1>
+
+
+        </div>
+
+        <div class="rail-bottom-meta">
+          <div class="rail-date">JAN 2026</div>
+          <div class="rail-sub">
+            OFFICIAL APPRAISAL AUTHORITY<br/>
+            VAN / DZC SYSTEM
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- RIGHT MAIN (유리 매대 + 아이콘 클릭 진입) -->
+    <main class="main">
+      
+
+      <!-- 메인 스테이지: 선반(배경) + 아이콘 오버레이 -->
+      <section class="stage" aria-label="Showcase stage">
+        <div class="showcase" role="application" aria-label="Glass shelf showcase">
+          <!-- ✅ 배경 이미지: 사진2(유리 매대) 넣기 -->
+          <img class="showcase-bg" src="00.jpeg" alt="Glass shelves background" />
+
+          <!-- 아이콘 오버레이(사진3~6) -->
+          <!-- 좌표는 %로 잡아서 반응형에서도 유지됨 -->
+          <button class="icon-btn" style="--x: 5.5%; --y: 21.5%; --w: 175px;" data-target="/catalog" aria-label="Go to Catalog">
+            <img src="a.png" alt="" />
+          </button>
+
+          <button class="icon-btn" style="--x: 36.7%; --y: 19.5%; --w: 410px;" data-target="/auction" aria-label="Go to Auction Room">
+            <img src="b.png" alt="" />
+          </button>
+
+          <button class="icon-btn" style="--x: 58%; --y: 43%; --w: 150px;" data-target="/appraisal" aria-label="Go to Appraisal">
+            <img src="c.png" alt="" />
+          </button>
+
+          <button class="icon-btn" style="--x: 8.5%; --y: 61.9%; --w: 245px;" data-target="/about" aria-label="Go to About">
+            <img src="d.png" alt="" />
+          </button>
+
+          <!-- 화면 우측 하단: 작은 안내 텍스트(원하면 삭제/수정) -->
+          <div class="hint">
+            CLICK AN ICON TO ENTER
+          </div>
+        </div>
+      </section>
+
+      <!-- 라우트에 따라 내용이 바뀌는 영역 -->
+      <section class="panel" aria-live="polite">
+        <div id="view" class="view"></div>
+      </section>
+    </main>
+  </div>
+
+  <script src="van.js"></script>
+</body>
+</html>
