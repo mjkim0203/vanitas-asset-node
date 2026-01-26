@@ -1,0 +1,302 @@
+:root{
+  --bg:#ffffff;
+  --text:#111;
+  --muted:#8c8c8c;
+  --line:#111;
+  --soft:#f3f3f3;
+  --font: Helvetica, Arial, sans-serif;
+  --mono: "Courier New", Courier, monospace;
+}
+
+*{ box-sizing:border-box; }
+
+/* ✅ 추가: 스크롤 제거 + 화면 높이 고정 */
+html, body{
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;            /* 스크롤 완전 제거 */
+  overscroll-behavior: none;   /* 트랙패드/모바일 바운스 방지 */
+}
+
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:var(--font);
+}
+
+/* ✅ 수정: min-height -> height, padding으로 넘치지 않게 */
+.page{
+  height:100vh;                /* 화면 딱 1페이지 */
+  padding:40px 60px 20px;      /* 아래 padding 살짝 줄임 */
+  position:relative;
+  overflow:hidden;             /* 내부 넘침 방지 */
+  display:flex;                /* 레이아웃 안정화 */
+  flex-direction:column;
+}
+
+/* TOP HUD */
+.hud{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  margin-bottom:10px;
+  flex: 0 0 auto;
+}
+
+.hud-left{
+  font-family:var(--mono);
+  font-size:18px;
+  line-height:1.8;
+  font-weight:600;
+}
+
+.hud-line{
+  letter-spacing:0.2px;
+}
+
+.hud-right{
+  font-family:var(--mono);
+  font-size:26px;
+  font-weight:700;
+}
+
+/* ✅ 수정: 가운데 영역이 남은 공간을 정확히 차지 */
+.center{
+  flex: 0 0 auto;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:flex-start;
+  padding-top: 80px;
+  gap:15px;
+  min-height: 0;
+}
+
+/* image */
+.img-stage{
+  width:360px;
+  height:240px;                /* ✅ 260 -> 240 살짝 줄여 안정 */
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  flex: 0 0 auto;
+}
+
+.img-stage img{
+  max-width:100%;
+  max-height:100%;
+  object-fit:contain;
+  display:block;
+}
+
+/* product info */
+.product{
+  text-align:center;
+  width:min(720px, 92vw);
+}
+
+.product-title{
+  margin:0 0 4px;
+  font-size:22px;
+  font-weight:800;
+}
+
+.product-price{
+  font-family:var(--mono);
+  font-size:18px;
+  margin-bottom:8px;          /* ✅ 18px -> 12px */
+  color:#222;
+}
+
+.product-desc{
+  font-size:14px;
+  line-height:1.6;             /* ✅ 1.8 -> 1.7 */
+  color:#444;
+}
+
+/* NAV ARROWS */
+.nav-arrow{
+  position:absolute;
+  top:50%;                     /* ✅ 46% -> 50% (정중앙) */
+  transform:translateY(-50%);
+  border:none;
+  background:transparent;
+  font-size:28px;
+  color:#c7c7c7;
+  cursor:pointer;
+  padding:12px 16px;
+  user-select:none;
+}
+.nav-arrow.left{ left:18px; }
+.nav-arrow.right{ right:18px; }
+.nav-arrow:hover{ color:#9d9d9d; }
+
+/* ✅ 수정: 하단 게임 영역이 화면 밖으로 밀리지 않게 */
+.game{
+  margin-top: 100px;   /* px 꼭 붙이기 */
+  padding-top: 0px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:10px;
+  flex: 0 0 auto;
+}
+
+/* question */
+.question{
+  font-size:18px;
+  font-weight:700;
+  margin-bottom:-10;             /* ✅ 6px -> 0 */
+}
+
+/* slider row */
+.slider-wrap{
+  width:min(905px, 92vw);
+  display:grid;
+  grid-template-columns:120px 1fr 120px;
+  gap:18px;
+  align-items:center;
+}
+
+.range-label{
+  font-family:var(--mono);
+  color:var(--muted);
+  font-size:14px;
+}
+
+.slider{
+  position:relative;
+  height:28px;                 /* ✅ 30 -> 28 */
+  display:flex;
+  align-items:center;
+}
+
+.slider-track{
+  width:100%;
+  height:4px;
+  background:var(--line);
+  border-radius:2px;
+}
+
+.slider-handle{
+  position:absolute;
+  top:50%;
+  transform:translate(-50%, -50%);
+  width:16px;
+  height:34px;                 /* ✅ 34 -> 32 */
+  background:var(--line);
+  border-radius:2px;
+  cursor:grab;
+  outline:none;
+}
+
+.slider-handle:active{ cursor:grabbing; }
+
+/* value */
+.value-row{
+  width:min(900px, 92vw);
+  display:flex;
+  justify-content:center;
+  gap:10px;
+  margin-top:0;                /* ✅ 2px -> 0 */
+  font-family:var(--mono);
+  color:#333;
+}
+.your-value-label{ color:var(--muted); }
+.your-value{ font-weight:700; }
+
+/* rule + result */
+.rule{
+  margin-top:8px;              /* ✅ 18px -> 8px */
+  font-size:14px;
+  color:#9a9a9a;
+  text-align:center;
+}
+
+.result{
+  margin-top:4px;              /* ✅ 6px -> 4px */
+  font-family:var(--mono);
+  font-size:14px;
+  min-height:18px;             /* ✅ 20 -> 18 */
+  color:#111;
+  text-align:center;
+}
+
+/* buttons */
+.actions{
+  margin-top:6px;              /* ✅ 10 -> 6 */
+  display:flex;
+  gap:10px;
+}
+.btn{
+  padding:10px 16px;
+  border:1px solid #111;
+  font-family:var(--mono);
+  font-weight:700;
+  cursor:pointer;
+}
+.btn.ghost{
+  background:#fff;
+  color:#111;
+}
+.btn.solid{
+  background:#111;
+  color:#fff;
+}
+
+/* small screens */
+@media (max-width: 700px){
+  .page{ padding:24px 18px 18px; }  /* ✅ 아래 padding도 줄임 */
+  .hud-left{ font-size:14px; }
+  .hud-right{ font-size:20px; }
+  .img-stage{ width:280px; height:200px; }
+  .product-title{ font-size:18px; }
+  .product-desc{ font-size:13px; line-height:1.6; }
+
+  .slider-wrap{
+    grid-template-columns:70px 1fr 70px;
+    gap:10px;
+  }
+}
+
+/* ===== Whisper Bubbles (35s 이하 등장) ===== */
+.whisper-layer{
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 3; /* 이미지/텍스트 위에 뜨게 */
+}
+
+/* 말풍선 */
+.whisper{
+  position: absolute;
+  max-width: 420px;
+  padding: 18px 26px;
+  border: 1px solid rgba(0,0,0,0.15);
+  border-radius: 999px;
+  background: rgba(255,255,255,0.72);
+  color: rgba(0,0,0,0.35);
+  font-family: var(--mono);
+  font-size: 16px;
+  backdrop-filter: blur(2px);
+
+  opacity: 0;
+  transform: translateY(6px);
+  animation: whisperFade 2.8s ease-in-out forwards;
+  white-space: nowrap;
+}
+
+@keyframes whisperFade{
+  0%   { opacity: 0; transform: translateY(10px); }
+  18%  { opacity: 1; transform: translateY(0); }
+  75%  { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-6px); }
+}
+
+/* 작은 말풍선(겹칠 때 크기 다양하게) */
+.whisper.small{
+  padding: 14px 20px;
+  font-size: 14px;
+  opacity: 0;
+}

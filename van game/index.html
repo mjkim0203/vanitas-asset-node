@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Investment Guess</title>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <main class="page">
+
+    <!-- TOP HUD -->
+    <header class="hud">
+      <div class="hud-left">
+        <div class="hud-line"># Object no.<span id="objectNo">114</span></div>
+        <div class="hud-line"># <span id="category">Category</span></div>
+      </div>
+
+      <div class="hud-right" aria-label="timer">
+        <span id="timerText">01 : 00</span>
+      </div>
+    </header>
+
+    <!-- CENTER IMAGE -->
+    <section class="center">
+      <div class="img-stage" aria-label="item image">
+        <!-- 실제 프로젝트에선 이미지 조각/콜라주로 교체하면 됨 -->
+        <img id="itemImage" src="pp.png" alt="Item" />
+        <div id="whisper-layer" class="whisper-layer" aria-hidden="true"></div>
+
+      </div>
+
+      <!-- PRODUCT INFO (center aligned) -->
+      <div class="product">
+        <h2 class="product-title" id="title">Deleted_Love_Letter.txt</h2>
+        
+
+        <div class="product-desc">
+       
+          <p id="desc">
+            전송되지 못하고 휴지통으로 들어간 4kb 텍스트 파일.
+            3년간의 감정이 0과 1의 배열로 남았습니다.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- NAV ARROWS (optional) -->
+    <button class="nav-arrow left" type="button" aria-label="previous">◀</button>
+    <button class="nav-arrow right" type="button" aria-label="next">▶</button>
+
+    <!-- SLIDER GAME -->
+    <section class="game">
+      <div class="question">얼마를 투자하시겠습니까?</div>
+
+      <div class="slider-wrap">
+        <div class="range-label left">0.00</div>
+
+        <div class="slider" id="slider">
+          <div class="slider-track"></div>
+          <div class="slider-handle" id="handle" tabindex="0" role="slider"
+               aria-valuemin="0" aria-valuemax="12000" aria-valuenow="0"></div>
+        </div>
+
+        <div class="range-label right">12,000.00</div>
+      </div>
+
+      <div class="value-row">
+        <span class="your-value-label">Your Value</span>
+        <span class="your-value" id="yourValue">0 DZC</span>
+      </div>
+
+      <div class="rule" id="ruleText">
+        IEAA의 감정가와 가장 유사한 가격을 제시한 참여자가 낙찰하게 됩니다.
+      </div>
+
+      <div class="result" id="result" aria-live="polite"></div>
+
+      <div class="actions">
+        <button class="btn ghost" id="resetBtn" type="button">RESET</button>
+        <button class="btn solid" id="submitBtn" type="button">SUBMIT</button>
+      </div>
+    </section>
+
+  </main>
+
+  <script src="./app.js"></script>
+</body>
+</html>
