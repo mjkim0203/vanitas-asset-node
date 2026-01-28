@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>High Quality 3D Workspace</title>
+    <title>3D Workspace Final</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #333; }
         #container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
@@ -44,27 +44,34 @@
         import { CSS3DRenderer, CSS3DObject } from 'three/addons/renderers/CSS3DRenderer.js';
         import * as TWEEN from 'tween';
 
+        // 1. 씬 설정
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x555555); 
 
+        // 2. 카메라 설정 (★ 여기가 중요합니다!)
         const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 5000);
-        camera.position.set(10, 10, 10); 
+        
+        // [수정 포인트] 시작 위치를 책상에 가깝게 설정 (숫자가 작을수록 가깝습니다)
+        // x: 오른쪽, y: 위, z: 앞뒤 (내 쪽)
+        const initialCamPos = new THREE.Vector3(2.0, 1.5, 2.0); 
+        const initialTarget = new THREE.Vector3(0, 0.5, 0); // 바라보는 높이 (책상 높이 쯤)
 
+        camera.position.copy(initialCamPos);
+        camera.lookAt(initialTarget);
+
+        // 3. 렌더러 설정
         const container = document.getElementById('container');
 
-        // [화질 개선 1] WebGL 렌더러 설정
+        // WebGL 렌더러 (고화질 설정)
         const webglRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-        // ★ 픽셀 비율 설정 (레티나 디스플레이 대응)
-        webglRenderer.setPixelRatio(window.devicePixelRatio); 
+        webglRenderer.setPixelRatio(window.devicePixelRatio); // 화질 개선
         webglRenderer.setSize(window.innerWidth, window.innerHeight);
         webglRenderer.domElement.style.position = 'absolute';
         webglRenderer.domElement.style.zIndex = 0; 
-        
-        // 색상 보정 (색감이 더 자연스러워짐)
         webglRenderer.outputColorSpace = THREE.SRGBColorSpace; 
-        
         container.appendChild(webglRenderer.domElement);
 
+        // CSS3D 렌더러
         const cssRenderer = new CSS3DRenderer();
         cssRenderer.setSize(window.innerWidth, window.innerHeight);
         cssRenderer.domElement.style.position = 'absolute';
@@ -72,46 +79,43 @@
         cssRenderer.domElement.style.pointerEvents = 'none'; 
         container.appendChild(cssRenderer.domElement);
 
+        // 4. 조명
         const ambientLight = new THREE.AmbientLight(0xffffff, 1.5);
         scene.add(ambientLight);
         const dirLight = new THREE.DirectionalLight(0xffffff, 2);
-        dirLight.position.set(10, 20, 10);
+        dirLight.position.set(5, 10, 5);
         scene.add(dirLight);
 
+        // 5. 컨트롤
         const controls = new OrbitControls(camera, webglRenderer.domElement); 
         controls.enableDamping = true;
+        controls.target.copy(initialTarget); // 컨트롤 타겟도 책상 중심으로
 
+        // 6. 모델 로드
         const loader = new GLTFLoader();
         const raycaster = new THREE.Raycaster();
         const mouse = new THREE.Vector2();
         
         let screenMesh = null;
         let isZoomed = false;
-        let initialCamPos = new THREE.Vector3();
-        let initialTarget = new THREE.Vector3();
 
         loader.load('room.glb', (gltf) => {
             const model = gltf.scene;
             scene.add(model);
             
+            // [모델 위치 자동 보정]
+            // 모델을 강제로 (0,0,0) 중앙으로 가져옵니다.
             const box = new THREE.Box3().setFromObject(model);
             const center = box.getCenter(new THREE.Vector3());
-            const size = box.getSize(new THREE.Vector3());
 
             model.position.x += (model.position.x - center.x);
             model.position.y += (model.position.y - center.y);
             model.position.z += (model.position.z - center.z);
+            
+            // ★ 이전 코드에서 카메라를 멀리 보내던 자동 계산 로직을 제거했습니다.
+            // 대신 위에서 설정한 initialCamPos (2.0, 1.5, 2.0) 위치를 사용합니다.
 
-            const maxDim = Math.max(size.x, size.y, size.z);
-            const fov = camera.fov * (Math.PI / 180);
-            let cameraZ = Math.abs(maxDim / 2 * Math.tan(fov * 2)) * 2.0;
-            
-            camera.position.set(cameraZ, cameraZ * 0.5, cameraZ);
-            camera.lookAt(0, 0, 0);
-            
-            initialCamPos.copy(camera.position);
-            initialTarget.copy(controls.target);
-            
+            // 모니터 찾기
             screenMesh = model.getObjectByName('imacscreen');
             if (screenMesh) {
                 console.log("iMac 화면 발견:", screenMesh.name);
@@ -126,10 +130,9 @@
         });
 
         function addWebScreen(mesh) {
-            // [화질 개선 2] 고해상도 iframe 생성
-            // 2배 크기로 만들고 0.5배로 축소 배치
-            const width = 2000;  // 기존 1000 * 2
-            const height = 1400; // 기존 700 * 2
+            // [화질 개선] 2배 크기 텍스처
+            const width = 2000;  
+            const height = 1400; 
 
             const div = document.createElement('div');
             div.style.width = width + 'px'; 
@@ -154,14 +157,14 @@
             cssObject.position.copy(worldPos);
             cssObject.quaternion.copy(worldQuat);
             
-            // 크기 보정: 해상도를 2배 키웠으니 스케일은 절반으로 줄여야 함
-            // (기존 0.001 -> 0.0005)
+            // 스케일 축소 (해상도 높임)
             cssObject.scale.set(0.0005, 0.0005, 0.0005);
             cssObject.translateZ(0.02);
 
             scene.add(cssObject);
         }
 
+        // 클릭 이벤트 (줌인)
         window.addEventListener('click', onMouseClick);
         function onMouseClick(event) {
             if (isZoomed || !screenMesh) return;
@@ -187,7 +190,8 @@
             const targetPos = new THREE.Vector3();
             targetMesh.getWorldPosition(targetPos);
             
-            const offset = 1.0; 
+            // 줌인 시 카메라 위치 (화면 바로 앞)
+            const offset = 0.8; 
             const camTargetPos = targetPos.clone().add(new THREE.Vector3(0, 0, offset)); 
 
             new TWEEN.Tween(camera.position)
@@ -238,7 +242,6 @@
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
-            // 리사이즈 시에도 픽셀 비율 유지
             webglRenderer.setPixelRatio(window.devicePixelRatio);
             webglRenderer.setSize(window.innerWidth, window.innerHeight);
             cssRenderer.setSize(window.innerWidth, window.innerHeight);
