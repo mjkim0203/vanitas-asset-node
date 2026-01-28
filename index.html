@@ -85,7 +85,8 @@
         scene.add(dirLight);
 
         // 4. 컨트롤
-        const controls = new OrbitControls(camera, cssRenderer.domElement); // 이벤트 기준을 cssRenderer로
+        // 변경 코드: webglRenderer에 연결하세요! (클릭이 여기로 통과해서 들어옴)
+const controls = new OrbitControls(camera, webglRenderer.domElement); // 이벤트 기준을 cssRenderer로
         controls.enableDamping = true;
         controls.target.set(initialTarget.x, initialTarget.y, initialTarget.z);
 
