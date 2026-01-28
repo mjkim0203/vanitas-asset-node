@@ -193,27 +193,45 @@
             }
         }
 
-        function zoomIn(targetMesh) {
+       function zoomIn(targetMesh) {
             isZoomed = true;
             controls.enabled = false;
 
+            // 1. 타겟의 위치와 회전값 가져오기
             const targetPos = new THREE.Vector3();
+            const targetQuat = new THREE.Quaternion();
             targetMesh.getWorldPosition(targetPos);
-            
-            // 줌인: 화면 바로 앞 (offset 0.6)
-            const offset = 0.6; 
-            const camTargetPos = targetPos.clone().add(new THREE.Vector3(0, 0, offset)); 
+            targetMesh.getWorldQuaternion(targetQuat);
 
+            // 2. 모니터가 바라보는 '정면 방향' 계산
+            // Three.js에서 기본 앞방향은 (0, 0, 1)입니다.
+            // 이 벡터에 모니터의 회전값(Quaternion)을 적용하면 실제 앞방향이 나옵니다.
+            const direction = new THREE.Vector3(0, 0, 1);
+            direction.applyQuaternion(targetQuat);
+            direction.normalize();
+
+            // 3. 카메라 위치 계산
+            // 모니터 위치에서 '정면 방향'으로 '거리(distance)'만큼 떨어진 곳
+            const distance = 0.8; // ★ 이 숫자로 줌인 거리를 조절하세요 (클수록 멀어짐)
+            const camTargetPos = targetPos.clone().add(direction.multiplyScalar(distance));
+
+            // [추가 보정] 만약 시점이 너무 낮거나 높다면 Y축 미세 조정
+            // camTargetPos.y += 0.0; 
+
+            // 4. 애니메이션 실행
             new TWEEN.Tween(camera.position)
                 .to({ x: camTargetPos.x, y: camTargetPos.y, z: camTargetPos.z }, 1500)
                 .easing(TWEEN.Easing.Cubic.InOut)
                 .start();
 
-            // 줌인할 때 타겟은 '화면 정중앙'
             new TWEEN.Tween(controls.target)
                 .to({ x: targetPos.x, y: targetPos.y, z: targetPos.z }, 1500)
                 .easing(TWEEN.Easing.Cubic.InOut)
                 .onComplete(() => {
+                    // 카메라가 도착한 뒤, 모니터 각도와 똑같이 회전시킴 (정면 보기)
+                    // 이 코드가 없으면 위치는 맞는데 고개가 삐딱할 수 있음
+                    // camera.lookAt(targetPos); // (OrbitControls가 있어서 생략 가능하지만 안전장치)
+                    
                     cssRenderer.domElement.style.pointerEvents = 'auto';
                     document.getElementById('back-btn').classList.add('active');
                     document.getElementById('guide').style.display = 'none';
