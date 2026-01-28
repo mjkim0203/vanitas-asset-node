@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>3D Workspace Final View</title>
+    <title>Desk Centered View</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #333; }
         #container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
@@ -23,7 +23,7 @@
     </style>
 </head>
 <body>
-    <div id="guide">화면을 드래그해서 구경하고, 모니터를 클릭하세요.</div>
+    <div id="guide">로딩중...</div>
     <div id="container"></div>
     <button id="back-btn">나가기 (EXIT)</button>
 
@@ -48,22 +48,12 @@
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x555555); 
 
-        // 2. 카메라 설정 (★ 여기가 중요합니다!)
+        // 2. 카메라 (임시 위치)
         const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 5000);
         
-        // [초기 시점 설정] 책상 정면이 잘 보이는 위치
-        // x: 0 (정중앙), y: 1.2 (눈높이보다 살짝 위), z: 3.5 (책상 앞 적당한 거리)
-        // 이 숫자를 조절하면 처음 보이는 뷰가 달라집니다.
-        const initialCamPos = new THREE.Vector3(0, 0.9, 3.0); 
-        const initialTarget = new THREE.Vector3(0, 0.5, 0); // 바라보는 곳 (모니터 높이 쯤)
-
-        camera.position.copy(initialCamPos);
-        camera.lookAt(initialTarget);
-
-        // 3. 렌더러 설정
+        // 3. 렌더러
         const container = document.getElementById('container');
 
-        // WebGL (고화질)
         const webglRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         webglRenderer.setPixelRatio(window.devicePixelRatio); 
         webglRenderer.setSize(window.innerWidth, window.innerHeight);
@@ -72,7 +62,6 @@
         webglRenderer.outputColorSpace = THREE.SRGBColorSpace; 
         container.appendChild(webglRenderer.domElement);
 
-        // CSS3D
         const cssRenderer = new CSS3DRenderer();
         cssRenderer.setSize(window.innerWidth, window.innerHeight);
         cssRenderer.domElement.style.position = 'absolute';
@@ -90,7 +79,8 @@
         // 5. 컨트롤
         const controls = new OrbitControls(camera, webglRenderer.domElement); 
         controls.enableDamping = true;
-        controls.target.copy(initialTarget);
+        // 일단 (0,0,0)으로 두지만, 모델 로딩 후 바뀝니다.
+        controls.target.set(0, 0, 0); 
 
         // 6. 모델 로드
         const loader = new GLTFLoader();
@@ -99,35 +89,60 @@
         
         let screenMesh = null;
         let isZoomed = false;
+        
+        // 돌아갈 원점(책상 위치)을 저장할 변수
+        let homeTarget = new THREE.Vector3(); 
+        let homeCamPos = new THREE.Vector3();
 
         loader.load('room.glb', (gltf) => {
             const model = gltf.scene;
             scene.add(model);
             
-            // [모델 위치 자동 중앙 정렬]
+            document.getElementById('guide').innerText = "화면을 드래그해서 회전, 모니터를 클릭하세요.";
+
+            // [모델 중앙 정렬]
             const box = new THREE.Box3().setFromObject(model);
             const center = box.getCenter(new THREE.Vector3());
+            model.position.sub(center); // 모델 전체를 (0,0,0)으로 이동
 
-            model.position.x += (model.position.x - center.x);
-            model.position.y += (model.position.y - center.y);
-            model.position.z += (model.position.z - center.z);
-            
             // 모니터 찾기
             screenMesh = model.getObjectByName('imacscreen');
+            
             if (screenMesh) {
-                console.log("iMac 화면 발견:", screenMesh.name);
+                console.log("iMac 화면 발견! 중심축 설정 중...");
                 addWebScreen(screenMesh);
+
+                // ★ [핵심 수정] 회전축(Target)을 모니터 위치로 강제 설정!
+                const screenPos = new THREE.Vector3();
+                screenMesh.getWorldPosition(screenPos);
+                
+                // 모니터보다 살짝 아래(책상 바닥)를 중심으로 잡음
+                homeTarget.copy(screenPos);
+                homeTarget.y -= 0.3; 
+
+                // 컨트롤러가 이제 '책상'을 바라보고 회전하게 함
+                controls.target.copy(homeTarget);
+
+                // 카메라는 책상 정면에서 시작
+                // (x=0, y=높이, z=거리)
+                homeCamPos.set(0, 1.2, 3.5); 
+                camera.position.copy(homeCamPos);
+                camera.lookAt(homeTarget);
+                
             } else {
-                console.error("'imacscreen' 오브젝트가 없습니다.");
+                console.error("'imacscreen' 없음. 기본 중앙 정렬 사용.");
+                // 비상용 기본값
+                homeTarget.set(0, 0, 0);
+                homeCamPos.set(0, 2, 5);
+                camera.position.copy(homeCamPos);
             }
 
         }, undefined, (error) => {
-            console.error('모델 로드 실패:', error);
-            document.getElementById('guide').innerText = "모델 로드 실패 (F12 콘솔 확인)";
+            console.error('실패:', error);
+            document.getElementById('guide').innerText = "로딩 실패";
         });
 
         function addWebScreen(mesh) {
-            // [화질 개선] 2배 해상도
             const width = 2000;  
             const height = 1400; 
 
@@ -153,15 +168,13 @@
 
             cssObject.position.copy(worldPos);
             cssObject.quaternion.copy(worldQuat);
-            
-            // 스케일 축소
             cssObject.scale.set(0.0005, 0.0005, 0.0005);
             cssObject.translateZ(0.02);
 
             scene.add(cssObject);
         }
 
-        // 클릭 이벤트 (줌인)
+        // 클릭 (줌인)
         window.addEventListener('click', onMouseClick);
         function onMouseClick(event) {
             if (isZoomed || !screenMesh) return;
@@ -187,8 +200,7 @@
             const targetPos = new THREE.Vector3();
             targetMesh.getWorldPosition(targetPos);
             
-            // [줌인 위치 설정] 화면 바로 앞까지 이동
-            // offset 값을 작게(0.6) 할수록 화면이 더 크게 보입니다.
+            // 줌인: 화면 바로 앞 (offset 0.6)
             const offset = 0.6; 
             const camTargetPos = targetPos.clone().add(new THREE.Vector3(0, 0, offset)); 
 
@@ -197,6 +209,7 @@
                 .easing(TWEEN.Easing.Cubic.InOut)
                 .start();
 
+            // 줌인할 때 타겟은 '화면 정중앙'
             new TWEEN.Tween(controls.target)
                 .to({ x: targetPos.x, y: targetPos.y, z: targetPos.z }, 1500)
                 .easing(TWEEN.Easing.Cubic.InOut)
@@ -215,13 +228,15 @@
             document.getElementById('back-btn').classList.remove('active');
             document.getElementById('guide').style.display = 'block';
 
+            // 카메라 위치: 원래 자리(homeCamPos)로
             new TWEEN.Tween(camera.position)
-                .to(initialCamPos, 1500)
+                .to(homeCamPos, 1500)
                 .easing(TWEEN.Easing.Cubic.InOut)
                 .start();
 
+            // ★ 중요: 타겟도 원래 자리(책상 중심)로 복귀
             new TWEEN.Tween(controls.target)
-                .to(initialTarget, 1500)
+                .to(homeTarget, 1500)
                 .easing(TWEEN.Easing.Cubic.InOut)
                 .onComplete(() => {
                     controls.enabled = true;
