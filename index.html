@@ -2,12 +2,11 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>3D Workspace with Zoom</title>
+    <title>3D Workspace Fix</title>
     <style>
-        body { margin: 0; overflow: hidden; background-color: #000; }
+        body { margin: 0; overflow: hidden; background-color: #333; } /* 배경 회색으로 변경 */
         #container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
         
-        /* 뒤로가기 버튼 (초기엔 숨김) */
         #back-btn {
             position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
             padding: 12px 30px; background: white; color: black; 
@@ -16,16 +15,15 @@
         }
         #back-btn.active { opacity: 1; pointer-events: auto; }
 
-        /* 안내 문구 */
         #guide {
             position: absolute; top: 20px; width: 100%; text-align: center;
-            color: #888; pointer-events: none; z-index: 10; font-family: sans-serif;
-            text-shadow: 0 0 5px black;
+            color: #fff; pointer-events: none; z-index: 10; font-family: sans-serif;
+            text-shadow: 0 0 5px black; font-size: 1.2rem;
         }
     </style>
 </head>
 <body>
-    <div id="guide">CLICK THE SCREEN TO ENTER</div>
+    <div id="guide">로딩중... (모델이 안 보이면 F12 콘솔을 확인하세요)</div>
     <div id="container"></div>
     <button id="back-btn">EXIT SCREEN</button>
 
@@ -44,282 +42,214 @@
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
         import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
         import { CSS3DRenderer, CSS3DObject } from 'three/addons/renderers/CSS3DRenderer.js';
-        import * as TWEEN from 'tween'; // 애니메이션 라이브러리 추가
+        import * as TWEEN from 'tween';
 
-        // 1. 씬 & 카메라 설정
+        // 1. 씬 설정 (배경색을 회색으로 해서 모델이 검게 나와도 보이게 함)
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x1a1a1a);
+        scene.background = new THREE.Color(0x555555); 
 
-        const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
-        // 초기 카메라 위치 저장
-        const initialCamPos = { x: 0, y: 5, z: 10 }; 
-        const initialTarget = { x: 0, y: 0, z: 0 };
-        camera.position.set(initialCamPos.x, initialCamPos.y, initialCamPos.z);
+        const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 5000); // 시야 거리 대폭 증가
+        camera.position.set(10, 10, 10); // 임시 위치
 
-        // 2. 렌더러 설정
+        // 2. 렌더러
         const container = document.getElementById('container');
 
-        // (1) WebGL Renderer
         const webglRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         webglRenderer.setSize(window.innerWidth, window.innerHeight);
         webglRenderer.domElement.style.position = 'absolute';
-        webglRenderer.domElement.style.top = 0;
         webglRenderer.domElement.style.zIndex = 0; 
         container.appendChild(webglRenderer.domElement);
 
-        // (2) CSS3D Renderer
         const cssRenderer = new CSS3DRenderer();
         cssRenderer.setSize(window.innerWidth, window.innerHeight);
         cssRenderer.domElement.style.position = 'absolute';
-        cssRenderer.domElement.style.top = 0;
         cssRenderer.domElement.style.zIndex = 1; 
-        // ★ 핵심: 처음에는 iframe 클릭을 막아야 Raycaster가 모델을 감지함
         cssRenderer.domElement.style.pointerEvents = 'none'; 
         container.appendChild(cssRenderer.domElement);
 
-        // 3. 조명
-        const ambientLight = new THREE.AmbientLight(0xffffff, 1);
+        // 3. 강력한 조명 (어디서든 보이게)
+        const ambientLight = new THREE.AmbientLight(0xffffff, 1.5);
         scene.add(ambientLight);
-        const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
-        dirLight.position.set(5, 10, 7);
+        const dirLight = new THREE.DirectionalLight(0xffffff, 2);
+        dirLight.position.set(10, 20, 10);
         scene.add(dirLight);
 
         // 4. 컨트롤
-        // 변경 코드: webglRenderer에 연결하세요! (클릭이 여기로 통과해서 들어옴)
-const controls = new OrbitControls(camera, webglRenderer.domElement); // 이벤트 기준을 cssRenderer로
+        const controls = new OrbitControls(camera, cssRenderer.domElement); 
         controls.enableDamping = true;
-        controls.target.set(initialTarget.x, initialTarget.y, initialTarget.z);
 
-        // 5. 모델 로드 및 인터랙션 설정
+        // 5. 모델 로드 (★ 자동 보정 기능 추가됨)
         const loader = new GLTFLoader();
         const raycaster = new THREE.Raycaster();
         const mouse = new THREE.Vector2();
         
-        let screenMesh = null; // 모니터 화면 메쉬 저장용
-        let isZoomed = false;  // 현재 줌 상태인지 체크
+        let screenMesh = null;
+        let isZoomed = false;
+        let initialCamPos = new THREE.Vector3();
+        let initialTarget = new THREE.Vector3();
 
-
-        
         loader.load('room.glb', (gltf) => {
-    const model = gltf.scene;
-    scene.add(model);
-
-    // [디버깅] 모델 안에 있는 모든 오브젝트 이름을 콘솔에 출력!
-    console.log("=== 🔍 모델 내부 오브젝트 목록 ===");
-    model.traverse((child) => {
-        if (child.isMesh) {
-            console.log("이름:", child.name, "/ 타입:", child.type);
-        }
-    });
-
-    // ★ 여기서 콘솔에 뜬 정확한 이름을 복사해서 아래에 넣으세요!
-    const screenMesh = model.getObjectByName('imacscreen'); 
-
-    if (!screenMesh) {
-        console.error("🚨 오류: 오브젝트를 찾을 수 없습니다! 위 목록에서 정확한 이름을 확인하세요.");
-        return; 
-    }
-
-
-
-
+            const model = gltf.scene;
+            scene.add(model);
             
+            console.log("모델 로드 성공!");
+            document.getElementById('guide').innerText = "CLICK THE SCREEN TO ENTER";
+
+            // ★ [자동 보정] 모델 크기/위치 자동 맞춤 코드
+            const box = new THREE.Box3().setFromObject(model);
+            const center = box.getCenter(new THREE.Vector3());
+            const size = box.getSize(new THREE.Vector3());
+
+            // 모델을 화면 중앙(0,0,0)으로 이동
+            model.position.x += (model.position.x - center.x);
+            model.position.y += (model.position.y - center.y);
+            model.position.z += (model.position.z - center.z);
+
+            // 카메라 위치 자동 조정 (모델 크기에 맞춰서)
+            const maxDim = Math.max(size.x, size.y, size.z);
+            const fov = camera.fov * (Math.PI / 180);
+            let cameraZ = Math.abs(maxDim / 2 * Math.tan(fov * 2)); // 거리 계산
+            cameraZ *= 2.0; // 여유 공간
+            
+            camera.position.set(cameraZ, cameraZ * 0.5, cameraZ); // 대각선 위에서 보기
+            camera.lookAt(0, 0, 0);
+            
+            // 초기 위치 기억 (줌아웃 때 돌아가기 위해)
+            initialCamPos.copy(camera.position);
+            initialTarget.copy(controls.target);
+            
+            // 모니터 찾기 로직
+            screenMesh = model.getObjectByName('imacscreen');
             if (screenMesh) {
-    console.log("✅ 화면 발견:", screenMesh.name);
-
-    // 1. 웹사이트 화면 만들기
-    const div = document.createElement('div');
-    div.style.width = '1000px'; 
-    div.style.height = '700px'; 
-    div.style.backgroundColor = 'white';
-
-    const iframe = document.createElement('iframe');
-    iframe.src = 'auction.html';
-    iframe.style.width = '1000px';
-    iframe.style.height = '700px';
-    iframe.style.border = 'none';
-    div.appendChild(iframe);
-
-    const cssObject = new CSS3DObject(div);
-
-    // 2. [위치 복사] 일단 3D 모델의 위치로 이동
-    const worldPos = new THREE.Vector3();
-    const worldQuat = new THREE.Quaternion();
-    const worldScale = new THREE.Vector3();
-    
-    // 월드 좌표계 기준 정보를 가져옴
-    screenMesh.getWorldPosition(worldPos);
-    screenMesh.getWorldQuaternion(worldQuat);
-    screenMesh.getWorldScale(worldScale);
-
-    cssObject.position.copy(worldPos);
-    cssObject.quaternion.copy(worldQuat);
-
-    // 3. [크기 조절] (화면이 너무 크거나 작으면 이 숫자를 조절하세요)
-    // 0.001은 1px을 1mm 정도로 줄이는 비율입니다.
-    cssObject.scale.set(0.001, 0.001, 0.001);
-
-    // ====================================================
-    // ★ [수동 보정 영역] 여기서 숫자를 바꿔서 딱 맞추세요!
-    // ====================================================
-    
-    // (A) 회전 보정 (90도 = Math.PI / 2)
-    // 화면이 누워있다면 X축을, 옆을 본다면 Y축을 돌려보세요.
-    cssObject.rotateX(0); 
-    cssObject.rotateY(0); 
-    cssObject.rotateZ(0); 
-
-    // (B) 위치 미세 조정 (모델보다 살짝 튀어나오게)
-    // 화면 안으로 파묻혔다면 z값을 조금 늘리세요 (local axis 기준)
-    cssObject.translateX(0);
-    cssObject.translateY(0);
-    cssObject.translateZ(0.05); // 0.05만큼 앞으로 뺌
-
-    // 4. 씬에 추가
-    scene.add(cssObject);
-    
-    // (옵션) 기존 검은 화면 숨기기 (필요하면 주석 해제)
-    // screenMesh.visible = false; 
-}
-
-
-
-
-            
-                // --- 웹사이트 화면 생성 ---
-                const div = document.createElement('div');
-                div.style.width = '1000px'; 
-                div.style.height = '700px'; 
-                div.style.backgroundColor = 'white';
-
-                const iframe = document.createElement('iframe');
-                iframe.src = 'auction.html'; // ★ 경매 사이트 연결
-                iframe.style.width = '1000px';
-                iframe.style.height = '700px';
-                iframe.style.border = 'none';
-                // iframe 내부 클릭이 3D 컨트롤을 방해하지 않도록 설정
-                iframe.style.pointerEvents = 'auto'; 
-                div.appendChild(iframe);
-
-                const cssObject = new CSS3DObject(div);
-                
-                // 위치/회전 복사
-                cssObject.position.copy(screenMesh.getWorldPosition(new THREE.Vector3()));
-                cssObject.quaternion.copy(screenMesh.getWorldQuaternion(new THREE.Quaternion()));
-                
-                // 크기 조절 (Blender 크기에 맞춰 조절 필요)
-                const scaleFactor = 0.001; 
-                cssObject.scale.set(scaleFactor, scaleFactor, scaleFactor);
-                
-                // 화면 겹침 방지 (살짝 앞으로)
-                cssObject.translateZ(0.01);
-
-                scene.add(cssObject);
+                console.log("iMac 화면 발견:", screenMesh.name);
+                addWebScreen(screenMesh);
             } else {
-                console.error("'imacscreen' 오브젝트를 찾을 수 없습니다.");
+                console.error("오류: 'imacscreen' 오브젝트가 없습니다. Blender에서 이름을 확인하세요.");
+                // 디버깅용: 모든 이름 출력
+                model.traverse(c => { if(c.isMesh) console.log(c.name); });
             }
+
+        }, undefined, (error) => {
+            console.error('모델 로드 실패:', error);
+            document.getElementById('guide').innerText = "모델 로드 실패 (F12 콘솔 확인)";
+            document.getElementById('guide').style.color = "red";
         });
 
-        // 6. 클릭 이벤트 리스너 (줌인 기능)
+        function addWebScreen(mesh) {
+            const div = document.createElement('div');
+            div.style.width = '1000px'; 
+            div.style.height = '700px'; 
+            div.style.backgroundColor = 'white';
+
+            const iframe = document.createElement('iframe');
+            iframe.src = 'auction.html';
+            iframe.style.width = '1000px';
+            iframe.style.height = '700px';
+            iframe.style.border = 'none';
+            iframe.style.pointerEvents = 'auto'; 
+            div.appendChild(iframe);
+
+            const cssObject = new CSS3DObject(div);
+            
+            // 위치/회전 복사
+            const worldPos = new THREE.Vector3();
+            const worldQuat = new THREE.Quaternion();
+            mesh.getWorldPosition(worldPos);
+            mesh.getWorldQuaternion(worldQuat);
+
+            cssObject.position.copy(worldPos);
+            cssObject.quaternion.copy(worldQuat);
+            
+            // 크기 (0.001 ~ 0.005 사이 조절 필요)
+            cssObject.scale.set(0.001, 0.001, 0.001);
+            
+            // 앞으로 살짝 뺌
+            cssObject.translateZ(0.02);
+
+            scene.add(cssObject);
+        }
+
+        // 클릭 이벤트 (줌인)
         window.addEventListener('click', onMouseClick);
-
         function onMouseClick(event) {
-            if (isZoomed || !screenMesh) return; // 이미 줌인 상태면 무시
+            if (isZoomed || !screenMesh) return;
 
-            // 마우스 좌표 계산
             mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
             mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
 
             raycaster.setFromCamera(mouse, camera);
-            
-            // 씬에 있는 모든 메쉬와 충돌 검사
             const intersects = raycaster.intersectObjects(scene.children, true);
 
             if (intersects.length > 0) {
-                // 클릭한 물체가 'imacscreen' 이거나 그 자식이면
-                const clickedObject = intersects[0].object;
-                
-                // 이름이 일치하거나, 모니터 화면을 클릭했다면
-                if (clickedObject.name === 'imacscreen' || clickedObject === screenMesh) {
+                const obj = intersects[0].object;
+                if (obj.name === 'imacscreen' || obj === screenMesh) {
                     zoomIn(screenMesh);
                 }
             }
         }
 
-        // 7. 줌인 함수
         function zoomIn(targetMesh) {
             isZoomed = true;
-            controls.enabled = false; // 줌 애니메이션 중 컨트롤 잠금
+            controls.enabled = false;
 
-            // 목표 위치: 화면 바로 앞
-            const targetPos = targetMesh.getWorldPosition(new THREE.Vector3());
+            const targetPos = new THREE.Vector3();
+            targetMesh.getWorldPosition(targetPos);
             
-            // 카메라가 화면 정면을 보게 위치 계산 (화면 법선 벡터 방향으로 약간 뒤)
-            // 간단하게: 화면 위치에서 z축(혹은 화면이 바라보는 방향)으로 약간 떨어뜨림
-            // 여기서는 단순하게 화면 위치 + 약간의 오프셋을 줍니다.
-            // *모델 회전값에 따라 오프셋 방향 조정이 필요할 수 있습니다.*
-            const offset = 1.5; // 화면과의 거리 (가까울수록 크게 보임)
-            
-            // CSS Object는 화면보다 살짝 앞에 있으므로 그 좌표 활용
+            // 화면 바로 앞 위치 계산
+            // (화면 방향으로 offset만큼 떨어진 곳)
+            const offset = 1.0; // 거리 조절
             const camTargetPos = targetPos.clone().add(new THREE.Vector3(0, 0, offset)); 
+            
+            // 만약 화면이 회전되어 있다면 아래처럼 방향을 계산해야 함 (간단 버전)
+            // const normal = new THREE.Vector3(0, 0, 1).applyQuaternion(targetMesh.getWorldQuaternion(new THREE.Quaternion()));
+            // const camTargetPos = targetPos.clone().add(normal.multiplyScalar(offset));
 
-            // TWEEN 애니메이션 (카메라 이동)
             new TWEEN.Tween(camera.position)
                 .to({ x: camTargetPos.x, y: camTargetPos.y, z: camTargetPos.z }, 1500)
                 .easing(TWEEN.Easing.Cubic.InOut)
                 .start();
 
-            // TWEEN 애니메이션 (시선 이동)
             new TWEEN.Tween(controls.target)
                 .to({ x: targetPos.x, y: targetPos.y, z: targetPos.z }, 1500)
                 .easing(TWEEN.Easing.Cubic.InOut)
                 .onComplete(() => {
-                    // 애니메이션이 끝나면:
-                    // 1. iframe 조작 허용 (클릭 가능하게)
                     cssRenderer.domElement.style.pointerEvents = 'auto';
-                    // 2. 뒤로가기 버튼 표시
                     document.getElementById('back-btn').classList.add('active');
                     document.getElementById('guide').style.display = 'none';
                 })
                 .start();
         }
 
-        // 8. 줌아웃 (나가기) 버튼 이벤트
+        // 줌아웃
         document.getElementById('back-btn').addEventListener('click', () => {
             isZoomed = false;
-            
-            // 다시 클릭 막기 (Raycaster가 작동하도록)
             cssRenderer.domElement.style.pointerEvents = 'none';
             document.getElementById('back-btn').classList.remove('active');
             document.getElementById('guide').style.display = 'block';
 
-            // 카메라 원위치
             new TWEEN.Tween(camera.position)
                 .to(initialCamPos, 1500)
                 .easing(TWEEN.Easing.Cubic.InOut)
                 .start();
 
-            // 타겟 원위치
             new TWEEN.Tween(controls.target)
                 .to(initialTarget, 1500)
                 .easing(TWEEN.Easing.Cubic.InOut)
                 .onComplete(() => {
-                    controls.enabled = true; // 컨트롤 다시 활성화
+                    controls.enabled = true;
                 })
                 .start();
         });
 
-        // 애니메이션 루프
         function animate() {
             requestAnimationFrame(animate);
-            TWEEN.update(); // 애니메이션 업데이트
+            TWEEN.update();
             controls.update();
             webglRenderer.render(scene, camera);
             cssRenderer.render(scene, camera);
         }
         animate();
 
-        // 리사이즈
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
