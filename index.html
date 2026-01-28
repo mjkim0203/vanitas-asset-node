@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>Vanitas 3D Workspace Fixed</title>
+    <title>Vanitas 3D Workspace SafeMode</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #333; }
         #container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
@@ -47,7 +47,9 @@
         import { CSS3DRenderer, CSS3DObject } from 'three/addons/renderers/CSS3DRenderer.js';
         import * as TWEEN from 'tween';
 
-        // 1. 씬 설정
+        // -------------------------------------------------------------------------
+        // 1. 기본 설정
+        // -------------------------------------------------------------------------
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x555555);
 
@@ -55,7 +57,7 @@
         
         const container = document.getElementById('container');
 
-        // [A] WebGL Renderer
+        // WebGL Renderer
         const webglRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         webglRenderer.setPixelRatio(window.devicePixelRatio); 
         webglRenderer.setSize(window.innerWidth, window.innerHeight);
@@ -64,7 +66,7 @@
         webglRenderer.domElement.style.zIndex = 0; 
         container.appendChild(webglRenderer.domElement);
 
-        // [B] CSS3D Renderer
+        // CSS3D Renderer
         const cssRenderer = new CSS3DRenderer();
         cssRenderer.setSize(window.innerWidth, window.innerHeight);
         cssRenderer.domElement.style.position = 'absolute';
@@ -83,40 +85,48 @@
         controls.minDistance = 0.5;
         controls.maxDistance = 10;
 
-        // 변수들
+        // -------------------------------------------------------------------------
+        // 2. 전역 변수 (안전한 접근을 위해)
+        // -------------------------------------------------------------------------
         const loader = new GLTFLoader();
         const raycaster = new THREE.Raycaster();
         const mouse = new THREE.Vector2();
         
         let screenMesh = null;
+        let iframeDOM = null; // ★ iframe을 직접 저장할 변수 (오류 방지)
         let isZoomed = false;
         
-        let homeTarget = new THREE.Vector3(); 
-        let homeCamPos = new THREE.Vector3();
+        // 홈 위치 (책상 뷰)
+        let homeTarget = new THREE.Vector3(0, 0, 0); 
+        let homeCamPos = new THREE.Vector3(0, 2, 5);
 
+        // -------------------------------------------------------------------------
         // 3. 모델 로드
+        // -------------------------------------------------------------------------
         loader.load('room.glb', (gltf) => {
             const model = gltf.scene;
             scene.add(model);
             
             document.getElementById('guide').innerText = "DRAG TO ROTATE / CLICK MONITOR TO ENTER";
 
+            // 모델 중앙 정렬
             const box = new THREE.Box3().setFromObject(model);
             const center = box.getCenter(new THREE.Vector3());
             model.position.sub(center); 
 
+            // 모니터 찾기
             screenMesh = model.getObjectByName('imacscreen');
             
             if (screenMesh) {
                 console.log("✅ iMac 화면 발견!");
                 addWebScreen(screenMesh);
 
-                // 홈 시점 설정 (책상 뷰)
+                // 초기 시점 설정
                 const screenPos = new THREE.Vector3();
                 screenMesh.getWorldPosition(screenPos);
                 
                 homeTarget.copy(screenPos);
-                homeTarget.y -= 0.3; 
+                homeTarget.y -= 0.3; // 시선 높이 조정
                 controls.target.copy(homeTarget);
 
                 homeCamPos.set(0, 1.2, 3.0); 
@@ -129,10 +139,11 @@
 
         }, undefined, (error) => {
             console.error('모델 로드 실패:', error);
-            document.getElementById('guide').innerText = "MODEL LOAD ERROR";
         });
 
-        // 4. 화면 생성 함수 (수정됨)
+        // -------------------------------------------------------------------------
+        // 4. 화면 생성 (addWebScreen)
+        // -------------------------------------------------------------------------
         function addWebScreen(mesh) {
             const width = 2000;  
             const height = 1400; 
@@ -147,12 +158,12 @@
             iframe.style.width = width + 'px';
             iframe.style.height = height + 'px';
             iframe.style.border = 'none';
-            
-            // ★★★ 핵심 수정 1: 처음에는 iframe 클릭을 막아야 합니다! ★★★
-            // 그래야 클릭 신호가 뒤에 있는 모니터(screenMesh)에 닿아서 줌인이 됩니다.
-            iframe.style.pointerEvents = 'none'; 
+            iframe.style.pointerEvents = 'none'; // 처음엔 클릭 차단
             
             div.appendChild(iframe);
+            
+            // ★ iframe을 변수에 저장해둡니다 (나중에 찾기 쉽게)
+            iframeDOM = iframe;
 
             const cssObject = new CSS3DObject(div);
             
@@ -165,15 +176,19 @@
             cssObject.quaternion.copy(worldQuat);
             cssObject.scale.set(0.0005, 0.0005, 0.0005);
 
-            // ★★★ 핵심 수정 2: 화면 뒤집힘 해결 ★★★
-            // rotateZ(Math.PI)를 제거했습니다.
-            cssObject.rotateX(-Math.PI / 2); // 90도 일으켜 세우기만 적용
+            // [방향 보정]
+            // 거꾸로 보인다면 아래 두 줄을 하나씩 켜고 끄면서 테스트해야 합니다.
+            // 현재 설정: 90도 일으켜 세우기만 적용 (위아래 반전 제거)
+            cssObject.rotateX(-Math.PI / 2); 
+            // cssObject.rotateZ(Math.PI); // 이 줄이 있으면 뒤집힘 (주석 처리됨)
 
             cssObject.translateZ(0.02);
             scene.add(cssObject);
         }
 
+        // -------------------------------------------------------------------------
         // 5. 클릭 이벤트 (줌인)
+        // -------------------------------------------------------------------------
         window.addEventListener('click', onMouseClick);
 
         function onMouseClick(event) {
@@ -218,12 +233,9 @@
                 .to({ x: targetPos.x, y: targetPos.y, z: targetPos.z }, 1500)
                 .easing(TWEEN.Easing.Cubic.InOut)
                 .onComplete(() => {
-                    // ★★★ 핵심 수정 3: 줌인이 끝난 뒤에 iframe 클릭을 허용 ★★★
+                    // ★ 안전하게 iframe 클릭 허용
                     cssRenderer.domElement.style.pointerEvents = 'auto';
-                    
-                    // iframe 내부의 pointer-events도 켜줍니다 (querySelector 사용)
-                    const iframe = document.querySelector('iframe');
-                    if(iframe) iframe.style.pointerEvents = 'auto';
+                    if (iframeDOM) iframeDOM.style.pointerEvents = 'auto';
 
                     document.getElementById('back-btn').classList.add('active');
                     document.getElementById('guide').style.opacity = '0';
@@ -231,14 +243,15 @@
                 .start();
         }
 
+        // -------------------------------------------------------------------------
         // 6. 나가기 버튼 (줌아웃)
+        // -------------------------------------------------------------------------
         document.getElementById('back-btn').addEventListener('click', () => {
             isZoomed = false;
             
-            // ★ 다시 클릭을 막습니다 (iframe)
+            // ★ 안전하게 iframe 클릭 차단
             cssRenderer.domElement.style.pointerEvents = 'none';
-            const iframe = document.querySelector('iframe');
-            if(iframe) iframe.style.pointerEvents = 'none';
+            if (iframeDOM) iframeDOM.style.pointerEvents = 'none';
 
             document.getElementById('back-btn').classList.remove('active');
             document.getElementById('guide').style.opacity = '1';
@@ -257,9 +270,12 @@
                 .start();
         });
 
+        // -------------------------------------------------------------------------
+        // 7. 애니메이션 루프
+        // -------------------------------------------------------------------------
         function animate() {
             requestAnimationFrame(animate);
-            TWEEN.update();
+            TWEEN.update(); // 애니메이션 업데이트 필수
             controls.update();
             webglRenderer.render(scene, camera);
             cssRenderer.render(scene, camera);
