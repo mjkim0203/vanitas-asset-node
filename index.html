@@ -2,21 +2,39 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>3D Workspace with Auction</title>
+    <title>3D Workspace with Zoom</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #000; }
         #container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
-        /* CSS3D 렌더러가 이 위에 올라옵니다 */
+        
+        /* 뒤로가기 버튼 (초기엔 숨김) */
+        #back-btn {
+            position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
+            padding: 12px 30px; background: white; color: black; 
+            border: none; border-radius: 30px; font-weight: bold; cursor: pointer;
+            opacity: 0; pointer-events: none; transition: opacity 0.5s; z-index: 10;
+        }
+        #back-btn.active { opacity: 1; pointer-events: auto; }
+
+        /* 안내 문구 */
+        #guide {
+            position: absolute; top: 20px; width: 100%; text-align: center;
+            color: #888; pointer-events: none; z-index: 10; font-family: sans-serif;
+            text-shadow: 0 0 5px black;
+        }
     </style>
 </head>
 <body>
+    <div id="guide">CLICK THE SCREEN TO ENTER</div>
     <div id="container"></div>
+    <button id="back-btn">EXIT SCREEN</button>
 
     <script type="importmap">
         {
             "imports": {
                 "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+                "tween": "https://unpkg.com/@tweenjs/tween.js@23.1.1/dist/tween.esm.js"
             }
         }
     </script>
@@ -26,18 +44,22 @@
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
         import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
         import { CSS3DRenderer, CSS3DObject } from 'three/addons/renderers/CSS3DRenderer.js';
+        import * as TWEEN from 'tween'; // 애니메이션 라이브러리 추가
 
         // 1. 씬 & 카메라 설정
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x1a1a1a); // 어두운 배경
+        scene.background = new THREE.Color(0x1a1a1a);
 
         const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
-        camera.position.set(0, 15, 20); // 초기 카메라 위치 (적절히 조절 필요)
+        // 초기 카메라 위치 저장
+        const initialCamPos = { x: 0, y: 5, z: 10 }; 
+        const initialTarget = { x: 0, y: 0, z: 0 };
+        camera.position.set(initialCamPos.x, initialCamPos.y, initialCamPos.z);
 
-        // 2. 렌더러 설정 (두 개를 겹침)
+        // 2. 렌더러 설정
         const container = document.getElementById('container');
 
-        // (1) WebGL Renderer (3D 모델용)
+        // (1) WebGL Renderer
         const webglRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         webglRenderer.setSize(window.innerWidth, window.innerHeight);
         webglRenderer.domElement.style.position = 'absolute';
@@ -45,93 +67,180 @@
         webglRenderer.domElement.style.zIndex = 0; 
         container.appendChild(webglRenderer.domElement);
 
-        // (2) CSS3D Renderer (웹사이트 화면용)
+        // (2) CSS3D Renderer
         const cssRenderer = new CSS3DRenderer();
         cssRenderer.setSize(window.innerWidth, window.innerHeight);
         cssRenderer.domElement.style.position = 'absolute';
         cssRenderer.domElement.style.top = 0;
-        cssRenderer.domElement.style.zIndex = 1; // 클릭 가능하도록 위에 배치
+        cssRenderer.domElement.style.zIndex = 1; 
+        // ★ 핵심: 처음에는 iframe 클릭을 막아야 Raycaster가 모델을 감지함
+        cssRenderer.domElement.style.pointerEvents = 'none'; 
         container.appendChild(cssRenderer.domElement);
 
-        // 3. 조명 설정
+        // 3. 조명
         const ambientLight = new THREE.AmbientLight(0xffffff, 1);
         scene.add(ambientLight);
         const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
         dirLight.position.set(5, 10, 7);
         scene.add(dirLight);
 
-        // 4. 컨트롤 설정
-        const controls = new OrbitControls(camera, cssRenderer.domElement);
+        // 4. 컨트롤
+        const controls = new OrbitControls(camera, cssRenderer.domElement); // 이벤트 기준을 cssRenderer로
         controls.enableDamping = true;
+        controls.target.set(initialTarget.x, initialTarget.y, initialTarget.z);
 
-        // 5. 모델 로드 및 화면 부착
+        // 5. 모델 로드 및 인터랙션 설정
         const loader = new GLTFLoader();
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
         
+        let screenMesh = null; // 모니터 화면 메쉬 저장용
+        let isZoomed = false;  // 현재 줌 상태인지 체크
+
         loader.load('room.glb', (gltf) => {
             const model = gltf.scene;
             scene.add(model);
 
-            // ★ 핵심: Blender에서 만든 'imacscreen' 오브젝트 찾기
-            const screenMesh = model.getObjectByName('imacscreen');
+            // 'imacscreen' 찾기
+            screenMesh = model.getObjectByName('imacscreen');
 
             if (screenMesh) {
-                console.log("iMac 화면을 찾았습니다!", screenMesh);
+                console.log("iMac 화면 발견:", screenMesh);
 
-                // 1) iframe 요소 생성 (경매 사이트 불러오기)
+                // --- 웹사이트 화면 생성 ---
                 const div = document.createElement('div');
-                div.style.width = '1000px';  // 웹사이트 해상도 (가로)
-                div.style.height = '700px';  // 웹사이트 해상도 (세로)
+                div.style.width = '1000px'; 
+                div.style.height = '700px'; 
                 div.style.backgroundColor = 'white';
 
                 const iframe = document.createElement('iframe');
-                iframe.src = 'auction.html'; // ★ 저장한 경매 사이트 파일
+                iframe.src = 'auction.html'; // ★ 경매 사이트 연결
                 iframe.style.width = '1000px';
                 iframe.style.height = '700px';
                 iframe.style.border = 'none';
+                // iframe 내부 클릭이 3D 컨트롤을 방해하지 않도록 설정
+                iframe.style.pointerEvents = 'auto'; 
                 div.appendChild(iframe);
 
-                // 2) CSS3D 오브젝트로 변환
                 const cssObject = new CSS3DObject(div);
-
-                // 3) 3D 모델(imacscreen)의 위치/회전/크기 복사
-                // (부모가 있을 경우 월드 좌표를 가져와야 정확함)
+                
+                // 위치/회전 복사
                 cssObject.position.copy(screenMesh.getWorldPosition(new THREE.Vector3()));
                 cssObject.quaternion.copy(screenMesh.getWorldQuaternion(new THREE.Quaternion()));
                 
-                // 4) 크기 맞추기 (HTML 픽셀 크기 -> 3D 미터 단위로 축소)
-                // Blender의 스크린 크기에 따라 이 값을 조절해야 합니다.
-                // 보통 0.001 ~ 0.005 사이 값을 곱해서 맞춥니다.
+                // 크기 조절 (Blender 크기에 맞춰 조절 필요)
                 const scaleFactor = 0.001; 
                 cssObject.scale.set(scaleFactor, scaleFactor, scaleFactor);
-
-                // 5) 기존 검은 화면은 숨기기 (안 보이게 처리)
-                // screenMesh.visible = false; 
-                // 혹은 검은 화면보다 아주 살짝 앞으로 튀어나오게 설정
-                cssObject.translateZ(0.01); 
+                
+                // 화면 겹침 방지 (살짝 앞으로)
+                cssObject.translateZ(0.01);
 
                 scene.add(cssObject);
-
-                // 6) 카메라가 화면을 잘 보이게 이동 (선택사항)
-                // controls.target.copy(cssObject.position);
-
             } else {
-                console.error("경고: 'imacscreen'이라는 이름의 오브젝트를 찾을 수 없습니다.");
+                console.error("'imacscreen' 오브젝트를 찾을 수 없습니다.");
             }
-
-        }, undefined, (error) => {
-            console.error('모델 로드 에러:', error);
         });
 
-        // 6. 애니메이션 루프
+        // 6. 클릭 이벤트 리스너 (줌인 기능)
+        window.addEventListener('click', onMouseClick);
+
+        function onMouseClick(event) {
+            if (isZoomed || !screenMesh) return; // 이미 줌인 상태면 무시
+
+            // 마우스 좌표 계산
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+            
+            // 씬에 있는 모든 메쉬와 충돌 검사
+            const intersects = raycaster.intersectObjects(scene.children, true);
+
+            if (intersects.length > 0) {
+                // 클릭한 물체가 'imacscreen' 이거나 그 자식이면
+                const clickedObject = intersects[0].object;
+                
+                // 이름이 일치하거나, 모니터 화면을 클릭했다면
+                if (clickedObject.name === 'imacscreen' || clickedObject === screenMesh) {
+                    zoomIn(screenMesh);
+                }
+            }
+        }
+
+        // 7. 줌인 함수
+        function zoomIn(targetMesh) {
+            isZoomed = true;
+            controls.enabled = false; // 줌 애니메이션 중 컨트롤 잠금
+
+            // 목표 위치: 화면 바로 앞
+            const targetPos = targetMesh.getWorldPosition(new THREE.Vector3());
+            
+            // 카메라가 화면 정면을 보게 위치 계산 (화면 법선 벡터 방향으로 약간 뒤)
+            // 간단하게: 화면 위치에서 z축(혹은 화면이 바라보는 방향)으로 약간 떨어뜨림
+            // 여기서는 단순하게 화면 위치 + 약간의 오프셋을 줍니다.
+            // *모델 회전값에 따라 오프셋 방향 조정이 필요할 수 있습니다.*
+            const offset = 1.5; // 화면과의 거리 (가까울수록 크게 보임)
+            
+            // CSS Object는 화면보다 살짝 앞에 있으므로 그 좌표 활용
+            const camTargetPos = targetPos.clone().add(new THREE.Vector3(0, 0, offset)); 
+
+            // TWEEN 애니메이션 (카메라 이동)
+            new TWEEN.Tween(camera.position)
+                .to({ x: camTargetPos.x, y: camTargetPos.y, z: camTargetPos.z }, 1500)
+                .easing(TWEEN.Easing.Cubic.InOut)
+                .start();
+
+            // TWEEN 애니메이션 (시선 이동)
+            new TWEEN.Tween(controls.target)
+                .to({ x: targetPos.x, y: targetPos.y, z: targetPos.z }, 1500)
+                .easing(TWEEN.Easing.Cubic.InOut)
+                .onComplete(() => {
+                    // 애니메이션이 끝나면:
+                    // 1. iframe 조작 허용 (클릭 가능하게)
+                    cssRenderer.domElement.style.pointerEvents = 'auto';
+                    // 2. 뒤로가기 버튼 표시
+                    document.getElementById('back-btn').classList.add('active');
+                    document.getElementById('guide').style.display = 'none';
+                })
+                .start();
+        }
+
+        // 8. 줌아웃 (나가기) 버튼 이벤트
+        document.getElementById('back-btn').addEventListener('click', () => {
+            isZoomed = false;
+            
+            // 다시 클릭 막기 (Raycaster가 작동하도록)
+            cssRenderer.domElement.style.pointerEvents = 'none';
+            document.getElementById('back-btn').classList.remove('active');
+            document.getElementById('guide').style.display = 'block';
+
+            // 카메라 원위치
+            new TWEEN.Tween(camera.position)
+                .to(initialCamPos, 1500)
+                .easing(TWEEN.Easing.Cubic.InOut)
+                .start();
+
+            // 타겟 원위치
+            new TWEEN.Tween(controls.target)
+                .to(initialTarget, 1500)
+                .easing(TWEEN.Easing.Cubic.InOut)
+                .onComplete(() => {
+                    controls.enabled = true; // 컨트롤 다시 활성화
+                })
+                .start();
+        });
+
+        // 애니메이션 루프
         function animate() {
             requestAnimationFrame(animate);
+            TWEEN.update(); // 애니메이션 업데이트
             controls.update();
             webglRenderer.render(scene, camera);
             cssRenderer.render(scene, camera);
         }
         animate();
 
-        // 리사이즈 대응
+        // 리사이즈
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
