@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>Vanitas 3D Workspace SafeMode</title>
+    <title>Vanitas 3D Workspace Final Perfect</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #333; }
         #container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
@@ -83,22 +83,22 @@
         const controls = new OrbitControls(camera, webglRenderer.domElement); 
         controls.enableDamping = true;
         controls.minDistance = 0.5;
-        controls.maxDistance = 10;
+        controls.maxDistance = 20;
 
         // -------------------------------------------------------------------------
-        // 2. 전역 변수 (안전한 접근을 위해)
+        // 2. 변수
         // -------------------------------------------------------------------------
         const loader = new GLTFLoader();
         const raycaster = new THREE.Raycaster();
         const mouse = new THREE.Vector2();
         
         let screenMesh = null;
-        let iframeDOM = null; // ★ iframe을 직접 저장할 변수 (오류 방지)
+        let iframeDOM = null;
         let isZoomed = false;
         
         // 홈 위치 (책상 뷰)
-        let homeTarget = new THREE.Vector3(0, 0, 0); 
-        let homeCamPos = new THREE.Vector3(0, 2, 5);
+        let homeTarget = new THREE.Vector3(); 
+        let homeCamPos = new THREE.Vector3();
 
         // -------------------------------------------------------------------------
         // 3. 모델 로드
@@ -114,22 +114,23 @@
             const center = box.getCenter(new THREE.Vector3());
             model.position.sub(center); 
 
-            // 모니터 찾기
             screenMesh = model.getObjectByName('imacscreen');
             
             if (screenMesh) {
                 console.log("✅ iMac 화면 발견!");
                 addWebScreen(screenMesh);
 
-                // 초기 시점 설정
+                // 초기 시점 설정 (책상 뷰)
                 const screenPos = new THREE.Vector3();
                 screenMesh.getWorldPosition(screenPos);
                 
                 homeTarget.copy(screenPos);
-                homeTarget.y -= 0.3; // 시선 높이 조정
+                homeTarget.y -= 0.3; // 시선 높이 (책상 쪽)
                 controls.target.copy(homeTarget);
 
-                homeCamPos.set(0, 1.2, 3.0); 
+                // 초기 카메라 위치: 책상 정면에서 적당히 떨어짐
+                // ★ 이 숫자를 조절해서 '처음 접속했을 때 거리'를 맞추세요.
+                homeCamPos.set(0, 1.2, 3.5); 
                 camera.position.copy(homeCamPos);
                 camera.lookAt(homeTarget);
                 
@@ -142,7 +143,7 @@
         });
 
         // -------------------------------------------------------------------------
-        // 4. 화면 생성 (addWebScreen)
+        // 4. 화면 생성
         // -------------------------------------------------------------------------
         function addWebScreen(mesh) {
             const width = 2000;  
@@ -158,11 +159,9 @@
             iframe.style.width = width + 'px';
             iframe.style.height = height + 'px';
             iframe.style.border = 'none';
-            iframe.style.pointerEvents = 'none'; // 처음엔 클릭 차단
+            iframe.style.pointerEvents = 'none'; // 처음엔 클릭 차단 (중요!)
             
             div.appendChild(iframe);
-            
-            // ★ iframe을 변수에 저장해둡니다 (나중에 찾기 쉽게)
             iframeDOM = iframe;
 
             const cssObject = new CSS3DObject(div);
@@ -176,12 +175,9 @@
             cssObject.quaternion.copy(worldQuat);
             cssObject.scale.set(0.0005, 0.0005, 0.0005);
 
-            // [방향 보정]
-            // 거꾸로 보인다면 아래 두 줄을 하나씩 켜고 끄면서 테스트해야 합니다.
-            // 현재 설정: 90도 일으켜 세우기만 적용 (위아래 반전 제거)
+            // [방향 보정] 90도 일으켜 세우기
             cssObject.rotateX(-Math.PI / 2); 
-            // cssObject.rotateZ(Math.PI); // 이 줄이 있으면 뒤집힘 (주석 처리됨)
-
+            
             cssObject.translateZ(0.02);
             scene.add(cssObject);
         }
@@ -208,32 +204,40 @@
             }
         }
 
+        // ★★★ 핵심 수정: 뒤집힘 없는 줌인 함수 ★★★
         function zoomIn(targetMesh) {
             isZoomed = true;
             controls.enabled = false;
 
             const targetPos = new THREE.Vector3();
-            const targetQuat = new THREE.Quaternion();
             targetMesh.getWorldPosition(targetPos);
-            targetMesh.getWorldQuaternion(targetQuat);
 
-            const direction = new THREE.Vector3(0, 0, 1);
-            direction.applyQuaternion(targetQuat);
-            direction.normalize();
+            // [수정된 로직]
+            // 복잡한 벡터 계산 대신, "현재 카메라 위치"와 "모니터 위치" 사이를 연결합니다.
+            // 이렇게 하면 무조건 지금 보고 있는 방향 그대로 다가갑니다.
+            const currentCamPos = camera.position.clone();
+            
+            // 모니터에서 카메라 쪽으로 향하는 방향 벡터 (normalize)
+            const direction = currentCamPos.sub(targetPos).normalize();
+            
+            // ★ 거리 조절: 2.0 ~ 3.0 사이 추천 (작을수록 가까워짐)
+            // 현재 보고 있는 시선 라인을 따라 이 거리만큼 떨어진 곳으로 이동합니다.
+            const distance = 0.9; 
 
-            const distance = 1.0; 
             const camTargetPos = targetPos.clone().add(direction.multiplyScalar(distance));
 
+            // 카메라 이동
             new TWEEN.Tween(camera.position)
                 .to({ x: camTargetPos.x, y: camTargetPos.y, z: camTargetPos.z }, 1500)
                 .easing(TWEEN.Easing.Cubic.InOut)
                 .start();
 
+            // 시선(Target) 이동 -> 모니터 정중앙
             new TWEEN.Tween(controls.target)
                 .to({ x: targetPos.x, y: targetPos.y, z: targetPos.z }, 1500)
                 .easing(TWEEN.Easing.Cubic.InOut)
                 .onComplete(() => {
-                    // ★ 안전하게 iframe 클릭 허용
+                    // 도착 후 클릭 허용
                     cssRenderer.domElement.style.pointerEvents = 'auto';
                     if (iframeDOM) iframeDOM.style.pointerEvents = 'auto';
 
@@ -249,18 +253,19 @@
         document.getElementById('back-btn').addEventListener('click', () => {
             isZoomed = false;
             
-            // ★ 안전하게 iframe 클릭 차단
             cssRenderer.domElement.style.pointerEvents = 'none';
             if (iframeDOM) iframeDOM.style.pointerEvents = 'none';
 
             document.getElementById('back-btn').classList.remove('active');
             document.getElementById('guide').style.opacity = '1';
 
+            // 원래 위치 복귀
             new TWEEN.Tween(camera.position)
                 .to(homeCamPos, 1500)
                 .easing(TWEEN.Easing.Cubic.InOut)
                 .start();
 
+            // 원래 시선 복귀
             new TWEEN.Tween(controls.target)
                 .to(homeTarget, 1500)
                 .easing(TWEEN.Easing.Cubic.InOut)
@@ -271,11 +276,11 @@
         });
 
         // -------------------------------------------------------------------------
-        // 7. 애니메이션 루프
+        // 7. 애니메이션
         // -------------------------------------------------------------------------
         function animate() {
             requestAnimationFrame(animate);
-            TWEEN.update(); // 애니메이션 업데이트 필수
+            TWEEN.update();
             controls.update();
             webglRenderer.render(scene, camera);
             cssRenderer.render(scene, camera);
