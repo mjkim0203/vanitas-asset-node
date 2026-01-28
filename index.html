@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>3D Workspace Final</title>
+    <title>High Quality 3D Workspace</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #333; }
         #container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
@@ -44,46 +44,43 @@
         import { CSS3DRenderer, CSS3DObject } from 'three/addons/renderers/CSS3DRenderer.js';
         import * as TWEEN from 'tween';
 
-        // 1. 씬 설정
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x555555); 
 
         const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 5000);
         camera.position.set(10, 10, 10); 
 
-        // 2. 렌더러 설정
         const container = document.getElementById('container');
 
-        // [뒤쪽] 3D 모델 렌더러
+        // [화질 개선 1] WebGL 렌더러 설정
         const webglRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        // ★ 픽셀 비율 설정 (레티나 디스플레이 대응)
+        webglRenderer.setPixelRatio(window.devicePixelRatio); 
         webglRenderer.setSize(window.innerWidth, window.innerHeight);
         webglRenderer.domElement.style.position = 'absolute';
         webglRenderer.domElement.style.zIndex = 0; 
+        
+        // 색상 보정 (색감이 더 자연스러워짐)
+        webglRenderer.outputColorSpace = THREE.SRGBColorSpace; 
+        
         container.appendChild(webglRenderer.domElement);
 
-        // [앞쪽] 웹사이트 화면 렌더러
         const cssRenderer = new CSS3DRenderer();
         cssRenderer.setSize(window.innerWidth, window.innerHeight);
         cssRenderer.domElement.style.position = 'absolute';
         cssRenderer.domElement.style.zIndex = 1; 
-        // ★ 평소에는 클릭을 무시하고 뒤쪽(WebGL)으로 넘깁니다.
         cssRenderer.domElement.style.pointerEvents = 'none'; 
         container.appendChild(cssRenderer.domElement);
 
-        // 3. 조명
         const ambientLight = new THREE.AmbientLight(0xffffff, 1.5);
         scene.add(ambientLight);
         const dirLight = new THREE.DirectionalLight(0xffffff, 2);
         dirLight.position.set(10, 20, 10);
         scene.add(dirLight);
 
-        // 4. 컨트롤 설정 (★ 여기가 수정되었습니다!)
-        // 기존: cssRenderer.domElement (X - 이벤트 막혀있음)
-        // 수정: webglRenderer.domElement (O - 이벤트 잘 받음)
         const controls = new OrbitControls(camera, webglRenderer.domElement); 
         controls.enableDamping = true;
 
-        // 5. 모델 및 화면 로드
         const loader = new GLTFLoader();
         const raycaster = new THREE.Raycaster();
         const mouse = new THREE.Vector2();
@@ -97,7 +94,6 @@
             const model = gltf.scene;
             scene.add(model);
             
-            // [자동 위치/크기 보정]
             const box = new THREE.Box3().setFromObject(model);
             const center = box.getCenter(new THREE.Vector3());
             const size = box.getSize(new THREE.Vector3());
@@ -116,13 +112,12 @@
             initialCamPos.copy(camera.position);
             initialTarget.copy(controls.target);
             
-            // 모니터 화면 찾기
             screenMesh = model.getObjectByName('imacscreen');
             if (screenMesh) {
                 console.log("iMac 화면 발견:", screenMesh.name);
                 addWebScreen(screenMesh);
             } else {
-                console.error("'imacscreen' 오브젝트가 없습니다. Blender 이름을 확인하세요.");
+                console.error("'imacscreen' 오브젝트가 없습니다.");
             }
 
         }, undefined, (error) => {
@@ -131,17 +126,21 @@
         });
 
         function addWebScreen(mesh) {
+            // [화질 개선 2] 고해상도 iframe 생성
+            // 2배 크기로 만들고 0.5배로 축소 배치
+            const width = 2000;  // 기존 1000 * 2
+            const height = 1400; // 기존 700 * 2
+
             const div = document.createElement('div');
-            div.style.width = '1000px'; 
-            div.style.height = '700px'; 
+            div.style.width = width + 'px'; 
+            div.style.height = height + 'px'; 
             div.style.backgroundColor = 'white';
 
             const iframe = document.createElement('iframe');
             iframe.src = 'auction.html';
-            iframe.style.width = '1000px';
-            iframe.style.height = '700px';
+            iframe.style.width = width + 'px';
+            iframe.style.height = height + 'px';
             iframe.style.border = 'none';
-            // iframe 내부는 클릭이 돼야 하므로 auto
             iframe.style.pointerEvents = 'auto'; 
             div.appendChild(iframe);
 
@@ -154,13 +153,15 @@
 
             cssObject.position.copy(worldPos);
             cssObject.quaternion.copy(worldQuat);
-            cssObject.scale.set(0.001, 0.001, 0.001);
-            cssObject.translateZ(0.02); // 겹침 방지
+            
+            // 크기 보정: 해상도를 2배 키웠으니 스케일은 절반으로 줄여야 함
+            // (기존 0.001 -> 0.0005)
+            cssObject.scale.set(0.0005, 0.0005, 0.0005);
+            cssObject.translateZ(0.02);
 
             scene.add(cssObject);
         }
 
-        // 클릭 이벤트 (줌인)
         window.addEventListener('click', onMouseClick);
         function onMouseClick(event) {
             if (isZoomed || !screenMesh) return;
@@ -173,7 +174,6 @@
 
             if (intersects.length > 0) {
                 const obj = intersects[0].object;
-                // 모니터 모델이나 화면을 클릭했을 때만 반응
                 if (obj.name === 'imacscreen' || obj === screenMesh) {
                     zoomIn(screenMesh);
                 }
@@ -182,7 +182,7 @@
 
         function zoomIn(targetMesh) {
             isZoomed = true;
-            controls.enabled = false; // 줌인하면 회전 잠금
+            controls.enabled = false;
 
             const targetPos = new THREE.Vector3();
             targetMesh.getWorldPosition(targetPos);
@@ -199,7 +199,6 @@
                 .to({ x: targetPos.x, y: targetPos.y, z: targetPos.z }, 1500)
                 .easing(TWEEN.Easing.Cubic.InOut)
                 .onComplete(() => {
-                    // ★ 줌인이 끝나면 웹사이트 클릭을 허용!
                     cssRenderer.domElement.style.pointerEvents = 'auto';
                     document.getElementById('back-btn').classList.add('active');
                     document.getElementById('guide').style.display = 'none';
@@ -207,10 +206,8 @@
                 .start();
         }
 
-        // 줌아웃 (나가기)
         document.getElementById('back-btn').addEventListener('click', () => {
             isZoomed = false;
-            // ★ 다시 클릭을 막아서 회전이 되게 함
             cssRenderer.domElement.style.pointerEvents = 'none';
             document.getElementById('back-btn').classList.remove('active');
             document.getElementById('guide').style.display = 'block';
@@ -224,7 +221,7 @@
                 .to(initialTarget, 1500)
                 .easing(TWEEN.Easing.Cubic.InOut)
                 .onComplete(() => {
-                    controls.enabled = true; // 회전 다시 허용
+                    controls.enabled = true;
                 })
                 .start();
         });
@@ -241,6 +238,8 @@
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
+            // 리사이즈 시에도 픽셀 비율 유지
+            webglRenderer.setPixelRatio(window.devicePixelRatio);
             webglRenderer.setSize(window.innerWidth, window.innerHeight);
             cssRenderer.setSize(window.innerWidth, window.innerHeight);
         });
