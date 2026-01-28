@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>3D Workspace Final</title>
+    <title>3D Workspace Final View</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #333; }
         #container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
@@ -23,9 +23,9 @@
     </style>
 </head>
 <body>
-    <div id="guide">화면을 드래그해서 회전, 모니터를 클릭해서 입장하세요.</div>
+    <div id="guide">화면을 드래그해서 구경하고, 모니터를 클릭하세요.</div>
     <div id="container"></div>
-    <button id="back-btn">EXIT SCREEN</button>
+    <button id="back-btn">나가기 (EXIT)</button>
 
     <script type="importmap">
         {
@@ -51,10 +51,11 @@
         // 2. 카메라 설정 (★ 여기가 중요합니다!)
         const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 5000);
         
-        // [수정 포인트] 시작 위치를 책상에 가깝게 설정 (숫자가 작을수록 가깝습니다)
-        // x: 오른쪽, y: 위, z: 앞뒤 (내 쪽)
-        const initialCamPos = new THREE.Vector3(2.0, 1.5, 2.0); 
-        const initialTarget = new THREE.Vector3(0, 0.5, 0); // 바라보는 높이 (책상 높이 쯤)
+        // [초기 시점 설정] 책상 정면이 잘 보이는 위치
+        // x: 0 (정중앙), y: 1.2 (눈높이보다 살짝 위), z: 3.5 (책상 앞 적당한 거리)
+        // 이 숫자를 조절하면 처음 보이는 뷰가 달라집니다.
+        const initialCamPos = new THREE.Vector3(0, 1.2, 3.5); 
+        const initialTarget = new THREE.Vector3(0, 0.5, 0); // 바라보는 곳 (모니터 높이 쯤)
 
         camera.position.copy(initialCamPos);
         camera.lookAt(initialTarget);
@@ -62,16 +63,16 @@
         // 3. 렌더러 설정
         const container = document.getElementById('container');
 
-        // WebGL 렌더러 (고화질 설정)
+        // WebGL (고화질)
         const webglRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-        webglRenderer.setPixelRatio(window.devicePixelRatio); // 화질 개선
+        webglRenderer.setPixelRatio(window.devicePixelRatio); 
         webglRenderer.setSize(window.innerWidth, window.innerHeight);
         webglRenderer.domElement.style.position = 'absolute';
         webglRenderer.domElement.style.zIndex = 0; 
         webglRenderer.outputColorSpace = THREE.SRGBColorSpace; 
         container.appendChild(webglRenderer.domElement);
 
-        // CSS3D 렌더러
+        // CSS3D
         const cssRenderer = new CSS3DRenderer();
         cssRenderer.setSize(window.innerWidth, window.innerHeight);
         cssRenderer.domElement.style.position = 'absolute';
@@ -89,7 +90,7 @@
         // 5. 컨트롤
         const controls = new OrbitControls(camera, webglRenderer.domElement); 
         controls.enableDamping = true;
-        controls.target.copy(initialTarget); // 컨트롤 타겟도 책상 중심으로
+        controls.target.copy(initialTarget);
 
         // 6. 모델 로드
         const loader = new GLTFLoader();
@@ -103,8 +104,7 @@
             const model = gltf.scene;
             scene.add(model);
             
-            // [모델 위치 자동 보정]
-            // 모델을 강제로 (0,0,0) 중앙으로 가져옵니다.
+            // [모델 위치 자동 중앙 정렬]
             const box = new THREE.Box3().setFromObject(model);
             const center = box.getCenter(new THREE.Vector3());
 
@@ -112,9 +112,6 @@
             model.position.y += (model.position.y - center.y);
             model.position.z += (model.position.z - center.z);
             
-            // ★ 이전 코드에서 카메라를 멀리 보내던 자동 계산 로직을 제거했습니다.
-            // 대신 위에서 설정한 initialCamPos (2.0, 1.5, 2.0) 위치를 사용합니다.
-
             // 모니터 찾기
             screenMesh = model.getObjectByName('imacscreen');
             if (screenMesh) {
@@ -130,7 +127,7 @@
         });
 
         function addWebScreen(mesh) {
-            // [화질 개선] 2배 크기 텍스처
+            // [화질 개선] 2배 해상도
             const width = 2000;  
             const height = 1400; 
 
@@ -157,7 +154,7 @@
             cssObject.position.copy(worldPos);
             cssObject.quaternion.copy(worldQuat);
             
-            // 스케일 축소 (해상도 높임)
+            // 스케일 축소
             cssObject.scale.set(0.0005, 0.0005, 0.0005);
             cssObject.translateZ(0.02);
 
@@ -190,8 +187,9 @@
             const targetPos = new THREE.Vector3();
             targetMesh.getWorldPosition(targetPos);
             
-            // 줌인 시 카메라 위치 (화면 바로 앞)
-            const offset = 0.8; 
+            // [줌인 위치 설정] 화면 바로 앞까지 이동
+            // offset 값을 작게(0.6) 할수록 화면이 더 크게 보입니다.
+            const offset = 0.6; 
             const camTargetPos = targetPos.clone().add(new THREE.Vector3(0, 0, offset)); 
 
             new TWEEN.Tween(camera.position)
@@ -210,6 +208,7 @@
                 .start();
         }
 
+        // 줌아웃 (나가기)
         document.getElementById('back-btn').addEventListener('click', () => {
             isZoomed = false;
             cssRenderer.domElement.style.pointerEvents = 'none';
