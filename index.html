@@ -98,16 +98,94 @@ const controls = new OrbitControls(camera, webglRenderer.domElement); // 이벤�
         let screenMesh = null; // 모니터 화면 메쉬 저장용
         let isZoomed = false;  // 현재 줌 상태인지 체크
 
+
+        
         loader.load('room.glb', (gltf) => {
-            const model = gltf.scene;
-            scene.add(model);
+    const model = gltf.scene;
+    scene.add(model);
 
-            // 'imacscreen' 찾기
-            screenMesh = model.getObjectByName('imacscreen');
+    // [디버깅] 모델 안에 있는 모든 오브젝트 이름을 콘솔에 출력!
+    console.log("=== 🔍 모델 내부 오브젝트 목록 ===");
+    model.traverse((child) => {
+        if (child.isMesh) {
+            console.log("이름:", child.name, "/ 타입:", child.type);
+        }
+    });
 
+    // ★ 여기서 콘솔에 뜬 정확한 이름을 복사해서 아래에 넣으세요!
+    const screenMesh = model.getObjectByName('imacscreen'); 
+
+    if (!screenMesh) {
+        console.error("🚨 오류: 오브젝트를 찾을 수 없습니다! 위 목록에서 정확한 이름을 확인하세요.");
+        return; 
+    }
+
+
+
+
+            
             if (screenMesh) {
-                console.log("iMac 화면 발견:", screenMesh);
+    console.log("✅ 화면 발견:", screenMesh.name);
 
+    // 1. 웹사이트 화면 만들기
+    const div = document.createElement('div');
+    div.style.width = '1000px'; 
+    div.style.height = '700px'; 
+    div.style.backgroundColor = 'white';
+
+    const iframe = document.createElement('iframe');
+    iframe.src = 'auction.html';
+    iframe.style.width = '1000px';
+    iframe.style.height = '700px';
+    iframe.style.border = 'none';
+    div.appendChild(iframe);
+
+    const cssObject = new CSS3DObject(div);
+
+    // 2. [위치 복사] 일단 3D 모델의 위치로 이동
+    const worldPos = new THREE.Vector3();
+    const worldQuat = new THREE.Quaternion();
+    const worldScale = new THREE.Vector3();
+    
+    // 월드 좌표계 기준 정보를 가져옴
+    screenMesh.getWorldPosition(worldPos);
+    screenMesh.getWorldQuaternion(worldQuat);
+    screenMesh.getWorldScale(worldScale);
+
+    cssObject.position.copy(worldPos);
+    cssObject.quaternion.copy(worldQuat);
+
+    // 3. [크기 조절] (화면이 너무 크거나 작으면 이 숫자를 조절하세요)
+    // 0.001은 1px을 1mm 정도로 줄이는 비율입니다.
+    cssObject.scale.set(0.001, 0.001, 0.001);
+
+    // ====================================================
+    // ★ [수동 보정 영역] 여기서 숫자를 바꿔서 딱 맞추세요!
+    // ====================================================
+    
+    // (A) 회전 보정 (90도 = Math.PI / 2)
+    // 화면이 누워있다면 X축을, 옆을 본다면 Y축을 돌려보세요.
+    cssObject.rotateX(0); 
+    cssObject.rotateY(0); 
+    cssObject.rotateZ(0); 
+
+    // (B) 위치 미세 조정 (모델보다 살짝 튀어나오게)
+    // 화면 안으로 파묻혔다면 z값을 조금 늘리세요 (local axis 기준)
+    cssObject.translateX(0);
+    cssObject.translateY(0);
+    cssObject.translateZ(0.05); // 0.05만큼 앞으로 뺌
+
+    // 4. 씬에 추가
+    scene.add(cssObject);
+    
+    // (옵션) 기존 검은 화면 숨기기 (필요하면 주석 해제)
+    // screenMesh.visible = false; 
+}
+
+
+
+
+            
                 // --- 웹사이트 화면 생성 ---
                 const div = document.createElement('div');
                 div.style.width = '1000px'; 
