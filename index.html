@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>Closer View Fixed</title>
+    <title>Fixed Close View</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #333; }
         #container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
@@ -41,7 +41,7 @@
         import * as TWEEN from 'tween';
 
         // =========================================================================
-        // ★★★ [주의] 아까 구한 숫자를 여기에 다시 적어주세요! ★★★
+        // ★★★ [주의] 구하신 숫자를 여기에 꼭 다시 적어주세요! ★★★
         // =========================================================================
         
         const MY_POS = { x: -6.00000, y: -14.23000, z: 2.52000 };       // 위치 (Position)
@@ -55,11 +55,13 @@
 
         const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 5000);
         
-        // ★★★ [수정됨] 시작 시점 가까이 당기기 ★★★
-        // 기존 (0, 1.5, 4.0) -> 수정 (0, 1.2, 2.5)
-        // 숫자가 작을수록 더 가까이서 시작합니다.
-        const homeCamPos = new THREE.Vector3(0, 1.2, 2.5);
-        const homeTarget = new THREE.Vector3(0, 0, 0); 
+        // ★★★ [핵심 수정] 카메라 초기 위치 자동 계산 ★★★
+        // 1. 카메라는 이제 (0,0,0)이 아니라 '화면 위치(MY_POS)'를 바라봅니다.
+        const homeTarget = new THREE.Vector3(MY_POS.x, MY_POS.y, MY_POS.z);
+        
+        // 2. 화면 위치에서 Z축으로 1.5만큼만 떨어진 곳에 카메라를 둡니다. (매우 가까움)
+        // 만약 더 가까이 가고 싶으면 1.5를 1.0으로 줄이세요.
+        const homeCamPos = new THREE.Vector3(MY_POS.x, MY_POS.y + 0.2, MY_POS.z + 1.5);
         
         camera.position.copy(homeCamPos);
         camera.lookAt(homeTarget);
@@ -79,8 +81,10 @@
         cssRenderer.domElement.style.pointerEvents = 'none'; 
         container.appendChild(cssRenderer.domElement);
 
+        // 컨트롤 설정 (회전 중심도 화면으로 변경)
         const controls = new OrbitControls(camera, webglRenderer.domElement); 
         controls.enableDamping = true;
+        controls.target.copy(homeTarget); // 회전축을 화면으로 설정
 
         const ambientLight = new THREE.AmbientLight(0xffffff, 1.5);
         scene.add(ambientLight);
@@ -88,7 +92,6 @@
         dirLight.position.set(5, 10, 5);
         scene.add(dirLight);
 
-        // 클릭 감지용 변수
         const raycaster = new THREE.Raycaster();
         const mouse = new THREE.Vector2();
 
@@ -107,10 +110,6 @@
             model.position.sub(center);
 
             monitorMesh = model.getObjectByName('imacscreen');
-            if (!monitorMesh) {
-                console.warn("imacscreen 못 찾음 (클릭 감지 부정확할 수 있음)");
-            }
-
             createScreen();
 
         }, undefined, (err) => console.error(err));
@@ -142,7 +141,6 @@
             targetMesh = cssObject; 
         }
 
-        // 클릭 이벤트 (화면 클릭 시에만 확대)
         window.addEventListener('click', (event) => {
             if (isZoomed || !targetMesh) return;
 
@@ -170,6 +168,7 @@
             const currentCamPos = camera.position.clone();
             const direction = currentCamPos.sub(targetPos).normalize();
             
+            // 줌인 거리 (0.9 -> 더 가까이)
             const distance = 0.9; 
             const camTargetPos = targetPos.clone().add(direction.multiplyScalar(distance));
 
