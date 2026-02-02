@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>Fixed Manual Position</title>
+    <title>Click Fix Manual</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #333; }
         #container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
@@ -13,9 +13,15 @@
             opacity: 0; pointer-events: none; transition: opacity 0.5s; z-index: 100;
         }
         #back-btn.active { opacity: 1; pointer-events: auto; }
+        #guide {
+            position: absolute; top: 30px; width: 100%; text-align: center;
+            color: rgba(255, 255, 255, 0.6); pointer-events: none; z-index: 10; 
+            font-family: sans-serif;
+        }
     </style>
 </head>
 <body>
+    <div id="guide">모니터 화면을 클릭하세요 (CLICK MONITOR)</div>
     <div id="container"></div>
     <button id="back-btn">EXIT MONITOR</button>
 
@@ -35,20 +41,19 @@
         import * as TWEEN from 'tween';
 
         // =========================================================================
-        // ★★★ [여기에 아까 구한 숫자를 적어주세요] ★★★
+        // ★★★ [아까 구한 위치값을 여기에 그대로 두세요] ★★★
         // =========================================================================
         
-        const MY_POS = { x: -6.00000, y: -14.23000, z: 2.52000 };       // 위치 (Position)
+          const MY_POS = { x: -6.00000, y: -14.23000, z: 2.52000 };       // 위치 (Position)
         const MY_ROT = { x: -3.10000, y: 1.29841, z: 3.10000 };       // 회전 (Rotation)
         const MY_SCALE = 0.001200;                   // 크기 (Scale)
 
-        // =========================================================================
+        //  =========================================================================
 
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x222222);
 
         const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 5000);
-        // 초기 카메라 위치 (책상 앞)
         const homeCamPos = new THREE.Vector3(0, 1.5, 4.0);
         const homeTarget = new THREE.Vector3(0, 0, 0); 
         camera.position.copy(homeCamPos);
@@ -78,8 +83,13 @@
         dirLight.position.set(5, 10, 5);
         scene.add(dirLight);
 
+        // 클릭 감지용 변수들
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+
         let iframeDOM = null;
-        let targetMesh = null;
+        let targetMesh = null; // 웹사이트 오브젝트
+        let monitorMesh = null; // 실제 3D 모델의 모니터 부분
         let isZoomed = false;
 
         // 모델 로드
@@ -88,12 +98,17 @@
             const model = gltf.scene;
             scene.add(model);
             
-            // 모델 중앙 정렬
             const box = new THREE.Box3().setFromObject(model);
             const center = box.getCenter(new THREE.Vector3());
             model.position.sub(center);
 
-            // 화면 생성 (무조건 실행)
+            // ★ 클릭 감지 대상을 찾습니다 (imacscreen)
+            monitorMesh = model.getObjectByName('imacscreen');
+            if (!monitorMesh) {
+                console.warn("'imacscreen'을 못 찾았습니다. 클릭 감지가 정확하지 않을 수 있습니다.");
+            }
+
+            // 화면 생성 (입력한 좌표 적용)
             createScreen();
 
         }, undefined, (err) => console.error(err));
@@ -102,9 +117,9 @@
             const width = 2000;
             const height = 1400;
             const div = document.createElement('div');
-            div.style.width = width + 'px';
-            div.style.height = height + 'px';
-            div.style.backgroundColor = 'white';
+            div.style.width = width + 'px'; 
+            div.style.height = height + 'px'; 
+            div.style.backgroundColor = 'white'; 
             
             const iframe = document.createElement('iframe');
             iframe.src = 'auction.html';
@@ -117,19 +132,44 @@
 
             const cssObject = new CSS3DObject(div);
 
-            // ★ [강제 적용] 입력하신 값 적용
+            // 입력하신 값 적용
             cssObject.position.set(MY_POS.x, MY_POS.y, MY_POS.z);
             cssObject.rotation.set(MY_ROT.x, MY_ROT.y, MY_ROT.z);
             cssObject.scale.set(MY_SCALE, MY_SCALE, MY_SCALE);
 
             scene.add(cssObject);
-            targetMesh = cssObject; // 줌인 타겟 설정
+            targetMesh = cssObject; 
         }
 
-        // 클릭 줌인
-        window.addEventListener('click', () => {
+        // =========================================================================
+        // ★★★ [수정됨] 클릭 이벤트: 정확히 화면을 눌렀는지 검사 ★★★
+        // =========================================================================
+        window.addEventListener('click', (event) => {
             if (isZoomed || !targetMesh) return;
-            zoomIn(targetMesh);
+
+            // 1. 마우스 좌표를 -1 ~ 1 사이 값으로 변환
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+            // 2. 레이저 쏘기 (카메라 시점에서 마우스 위치로)
+            raycaster.setFromCamera(mouse, camera);
+
+            // 3. 씬에 있는 물체들과 부딪혔는지 검사
+            const intersects = raycaster.intersectObjects(scene.children, true);
+
+            if (intersects.length > 0) {
+                // 부딪힌 첫 번째 물체를 가져옴
+                const hitObject = intersects[0].object;
+
+                // 4. 부딪힌 게 '모니터(imacscreen)'이거나 '웹사이트'일 때만 줌인 실행
+                // (monitorMesh가 없으면 아무거나 클릭해도 되도록 예외처리 함)
+                if (monitorMesh && (hitObject === monitorMesh || hitObject.name === 'imacscreen')) {
+                    zoomIn(targetMesh);
+                } else if (!monitorMesh) {
+                    // 비상시: 모니터 이름을 못 찾았으면 그냥 줌인
+                    zoomIn(targetMesh);
+                }
+            }
         });
 
         function zoomIn(target) {
@@ -155,6 +195,7 @@
                     cssRenderer.domElement.style.pointerEvents = 'auto';
                     if (iframeDOM) iframeDOM.style.pointerEvents = 'auto';
                     document.getElementById('back-btn').classList.add('active');
+                    document.getElementById('guide').style.opacity = '0';
                 })
                 .start();
         }
@@ -165,6 +206,7 @@
             cssRenderer.domElement.style.pointerEvents = 'none';
             if (iframeDOM) iframeDOM.style.pointerEvents = 'none';
             document.getElementById('back-btn').classList.remove('active');
+            document.getElementById('guide').style.opacity = '1';
 
             new TWEEN.Tween(camera.position).to(homeCamPos, 1500).easing(TWEEN.Easing.Cubic.InOut).start();
             new TWEEN.Tween(controls.target).to(homeTarget, 1500).easing(TWEEN.Easing.Cubic.InOut)
