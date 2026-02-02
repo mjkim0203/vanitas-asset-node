@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>3D Screen Calibrator</title>
+    <title>Unlimited Calibrator</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #333; }
         #container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
@@ -16,11 +16,12 @@
 </head>
 <body>
     <div id="guide">
-        1. 우측 상단 컨트롤러를 조절하세요.<br>
-        2. [Rotation]을 돌려 글씨가 똑바로 보이게 하세요.<br>
-        3. [Scale]로 모니터 크기에 딱 맞추세요.<br>
-        4. [Position]으로 위치를 잡으세요.<br>
-        5. 완료되면 맨 아래 <strong>[값 콘솔 출력]</strong> 버튼 클릭!
+        ★ 슬라이더 제한을 -100 ~ 100으로 늘렸습니다.<br>
+        ★ 숫자를 클릭하면 키보드로 직접 입력 가능합니다.<br>
+        1. [Rotation]으로 각도를 먼저 맞추세요.<br>
+        2. [Scale]로 크기를 대충 맞추세요.<br>
+        3. [Position]으로 위치를 잡으세요.<br>
+        4. 완료되면 <strong>[값 콘솔 출력]</strong> 클릭 후 복사!
     </div>
     <div id="container"></div>
 
@@ -61,7 +62,7 @@
         cssRenderer.setSize(window.innerWidth, window.innerHeight);
         cssRenderer.domElement.style.position = 'absolute';
         cssRenderer.domElement.style.zIndex = 1; 
-        cssRenderer.domElement.style.pointerEvents = 'none'; // 조절 중 클릭 방지
+        cssRenderer.domElement.style.pointerEvents = 'none'; 
         container.appendChild(cssRenderer.domElement);
 
         const ambientLight = new THREE.AmbientLight(0xffffff, 1.5);
@@ -86,11 +87,11 @@
             const screenMesh = model.getObjectByName('imacscreen');
             
             if (screenMesh) {
-                // 카메라 이동
+                // 카메라를 대략적인 위치로 이동
                 const screenPos = new THREE.Vector3();
                 screenMesh.getWorldPosition(screenPos);
                 controls.target.copy(screenPos);
-                camera.position.set(0, 1.5, 3.5);
+                camera.position.set(screenPos.x, screenPos.y + 2, screenPos.z + 5);
                 camera.lookAt(screenPos);
 
                 addWebScreenWithGUI(screenMesh);
@@ -106,9 +107,11 @@
             const div = document.createElement('div');
             div.style.width = width + 'px'; 
             div.style.height = height + 'px'; 
-            div.style.backgroundColor = 'rgba(255, 0, 0, 0.3)'; // 반투명 빨강 (위치 확인용)
-            div.style.border = '10px solid yellow'; // 테두리 (사이즈 확인용)
+            div.style.backgroundColor = 'rgba(255, 0, 0, 0.3)'; 
+            div.style.border = '20px solid yellow'; 
             div.style.boxSizing = 'border-box';
+            // 글씨 방향 확인용 텍스트 추가
+            div.innerHTML = `<h1 style="color:white; font-size:100px; text-align:center;">글씨가 보이나요?</h1>`;
 
             const iframe = document.createElement('iframe');
             iframe.src = 'auction.html';
@@ -119,45 +122,55 @@
 
             const cssObject = new CSS3DObject(div);
             
-            // 초기값: 모델 위치 복사
+            // 초기 위치는 모델 위치로
             const worldPos = new THREE.Vector3();
             const worldQuat = new THREE.Quaternion();
-            const worldScale = new THREE.Vector3();
             mesh.getWorldPosition(worldPos);
             mesh.getWorldQuaternion(worldQuat);
-            mesh.getWorldScale(worldScale);
 
             cssObject.position.copy(worldPos);
             cssObject.quaternion.copy(worldQuat);
-            cssObject.scale.set(0.0005, 0.0005, 0.0005); // 아주 작게 시작
+            cssObject.scale.set(0.0005, 0.0005, 0.0005); 
 
             scene.add(cssObject);
 
             // ==========================================
-            // ★ 컨트롤러 설정 ★
+            // ★ 범위가 대폭 늘어난 컨트롤러 ★
             // ==========================================
-            const gui = new GUI({ width: 300 });
+            const gui = new GUI({ width: 320 });
             
-            // 1. 회전 (Rotation)
-            const folderRot = gui.addFolder('1. 회전 (글씨 바로잡기)');
-            folderRot.add(cssObject.rotation, 'x', -6.28, 6.28).step(0.1).name('Rotate X (위아래)');
-            folderRot.add(cssObject.rotation, 'y', -6.28, 6.28).step(0.1).name('Rotate Y (좌우)');
-            folderRot.add(cssObject.rotation, 'z', -6.28, 6.28).step(0.1).name('Rotate Z (기울기)');
+            // 1. 회전 (Rotation) - 범위 무제한
+            const folderRot = gui.addFolder('1. 회전 (제한없음)');
+            // Math.PI * 4 = 두 바퀴 돌릴 수 있음
+            folderRot.add(cssObject.rotation, 'x', -10, 10).step(0.01).name('Rotate X (위아래)');
+            folderRot.add(cssObject.rotation, 'y', -10, 10).step(0.01).name('Rotate Y (좌우)');
+            folderRot.add(cssObject.rotation, 'z', -10, 10).step(0.01).name('Rotate Z (기울기)');
+            
+            // ★ 편리 기능: 90도씩 돌리기 버튼
+            const rotateTools = {
+                flipX: () => cssObject.rotateX(-Math.PI/2), // 세우기
+                flipY: () => cssObject.rotateY(Math.PI),    // 좌우반전
+                reset: () => cssObject.rotation.set(0,0,0)
+            };
+            folderRot.add(rotateTools, 'flipX').name('[-90도 세우기]');
+            folderRot.add(rotateTools, 'flipY').name('[좌우 반전]');
+            folderRot.add(rotateTools, 'reset').name('[회전 초기화]');
             folderRot.open();
 
-            // 2. 크기 (Scale)
-            const folderScale = gui.addFolder('2. 크기 (모니터 맞추기)');
+            // 2. 크기 (Scale) - 범위 대폭 증가
+            const folderScale = gui.addFolder('2. 크기 (최대 10배)');
             const scaleParam = { val: 0.0005 };
-            folderScale.add(scaleParam, 'val', 0.0001, 0.003).step(0.00001).name('Scale').onChange(v => {
+            // 0.0001 ~ 0.1 까지 (기존보다 100배 더 커질 수 있음)
+            folderScale.add(scaleParam, 'val', 0.0001, 0.1).step(0.0001).name('Scale').onChange(v => {
                 cssObject.scale.set(v, v, v);
             });
             folderScale.open();
 
-            // 3. 위치 (Position)
-            const folderPos = gui.addFolder('3. 위치 미세조정');
-            folderPos.add(cssObject.position, 'x', -2, 2).step(0.01).name('Pos X');
-            folderPos.add(cssObject.position, 'y', -2, 2).step(0.01).name('Pos Y');
-            folderPos.add(cssObject.position, 'z', -2, 2).step(0.01).name('Pos Z');
+            // 3. 위치 (Position) - 범위 대폭 증가 (-100 ~ 100)
+            const folderPos = gui.addFolder('3. 위치 (범위 100)');
+            folderPos.add(cssObject.position, 'x', -100, 100).step(0.01).name('Pos X');
+            folderPos.add(cssObject.position, 'y', -100, 100).step(0.01).name('Pos Y');
+            folderPos.add(cssObject.position, 'z', -100, 100).step(0.01).name('Pos Z');
             folderPos.open();
 
             // 4. 출력 버튼
@@ -165,16 +178,16 @@
                 print: () => {
                     const log = `
 =========================================
-★ 이 코드를 복사해서 저에게 주세요! ★
+★ 아래 숫자를 복사해서 알려주세요! ★
 position: ${cssObject.position.x.toFixed(5)}, ${cssObject.position.y.toFixed(5)}, ${cssObject.position.z.toFixed(5)}
 rotation: ${cssObject.rotation.x.toFixed(5)}, ${cssObject.rotation.y.toFixed(5)}, ${cssObject.rotation.z.toFixed(5)}
 scale: ${cssObject.scale.x.toFixed(6)}
 =========================================`;
                     console.log(log);
-                    alert("F12(개발자도구) -> Console 탭을 확인하세요!\n거기에 나온 숫자를 복사해주세요.");
+                    alert("F12(개발자도구) -> Console 탭을 확인하세요!");
                 }
             };
-            gui.add(params, 'print').name('★ 값 확인 (Click) ★');
+            gui.add(params, 'print').name('★ 값 콘솔 출력 (Click) ★');
         }
 
         function animate() {
