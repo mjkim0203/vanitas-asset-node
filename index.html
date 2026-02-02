@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>Click Fix Manual</title>
+    <title>Closer View Fixed</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #333; }
         #container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
@@ -41,10 +41,10 @@
         import * as TWEEN from 'tween';
 
         // =========================================================================
-        // ★★★ [아까 구한 위치값을 여기에 그대로 두세요] ★★★
+        // ★★★ [주의] 아까 구한 숫자를 여기에 다시 적어주세요! ★★★
         // =========================================================================
         
-          const MY_POS = { x: -6.00000, y: -14.23000, z: 2.52000 };       // 위치 (Position)
+        const MY_POS = { x: -6.00000, y: -14.23000, z: 2.52000 };       // 위치 (Position)
         const MY_ROT = { x: -3.10000, y: 1.29841, z: 3.10000 };       // 회전 (Rotation)
         const MY_SCALE = 0.001200;                   // 크기 (Scale)
 
@@ -54,8 +54,13 @@
         scene.background = new THREE.Color(0x222222);
 
         const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 5000);
-        const homeCamPos = new THREE.Vector3(0, 1.5, 4.0);
+        
+        // ★★★ [수정됨] 시작 시점 가까이 당기기 ★★★
+        // 기존 (0, 1.5, 4.0) -> 수정 (0, 1.2, 2.5)
+        // 숫자가 작을수록 더 가까이서 시작합니다.
+        const homeCamPos = new THREE.Vector3(0, 1.2, 2.5);
         const homeTarget = new THREE.Vector3(0, 0, 0); 
+        
         camera.position.copy(homeCamPos);
         camera.lookAt(homeTarget);
 
@@ -83,16 +88,15 @@
         dirLight.position.set(5, 10, 5);
         scene.add(dirLight);
 
-        // 클릭 감지용 변수들
+        // 클릭 감지용 변수
         const raycaster = new THREE.Raycaster();
         const mouse = new THREE.Vector2();
 
         let iframeDOM = null;
-        let targetMesh = null; // 웹사이트 오브젝트
-        let monitorMesh = null; // 실제 3D 모델의 모니터 부분
+        let targetMesh = null; 
+        let monitorMesh = null; 
         let isZoomed = false;
 
-        // 모델 로드
         const loader = new GLTFLoader();
         loader.load('room.glb', (gltf) => {
             const model = gltf.scene;
@@ -102,13 +106,11 @@
             const center = box.getCenter(new THREE.Vector3());
             model.position.sub(center);
 
-            // ★ 클릭 감지 대상을 찾습니다 (imacscreen)
             monitorMesh = model.getObjectByName('imacscreen');
             if (!monitorMesh) {
-                console.warn("'imacscreen'을 못 찾았습니다. 클릭 감지가 정확하지 않을 수 있습니다.");
+                console.warn("imacscreen 못 찾음 (클릭 감지 부정확할 수 있음)");
             }
 
-            // 화면 생성 (입력한 좌표 적용)
             createScreen();
 
         }, undefined, (err) => console.error(err));
@@ -132,7 +134,6 @@
 
             const cssObject = new CSS3DObject(div);
 
-            // 입력하신 값 적용
             cssObject.position.set(MY_POS.x, MY_POS.y, MY_POS.z);
             cssObject.rotation.set(MY_ROT.x, MY_ROT.y, MY_ROT.z);
             cssObject.scale.set(MY_SCALE, MY_SCALE, MY_SCALE);
@@ -141,32 +142,21 @@
             targetMesh = cssObject; 
         }
 
-        // =========================================================================
-        // ★★★ [수정됨] 클릭 이벤트: 정확히 화면을 눌렀는지 검사 ★★★
-        // =========================================================================
+        // 클릭 이벤트 (화면 클릭 시에만 확대)
         window.addEventListener('click', (event) => {
             if (isZoomed || !targetMesh) return;
 
-            // 1. 마우스 좌표를 -1 ~ 1 사이 값으로 변환
             mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
             mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
 
-            // 2. 레이저 쏘기 (카메라 시점에서 마우스 위치로)
             raycaster.setFromCamera(mouse, camera);
-
-            // 3. 씬에 있는 물체들과 부딪혔는지 검사
             const intersects = raycaster.intersectObjects(scene.children, true);
 
             if (intersects.length > 0) {
-                // 부딪힌 첫 번째 물체를 가져옴
                 const hitObject = intersects[0].object;
-
-                // 4. 부딪힌 게 '모니터(imacscreen)'이거나 '웹사이트'일 때만 줌인 실행
-                // (monitorMesh가 없으면 아무거나 클릭해도 되도록 예외처리 함)
                 if (monitorMesh && (hitObject === monitorMesh || hitObject.name === 'imacscreen')) {
                     zoomIn(targetMesh);
                 } else if (!monitorMesh) {
-                    // 비상시: 모니터 이름을 못 찾았으면 그냥 줌인
                     zoomIn(targetMesh);
                 }
             }
