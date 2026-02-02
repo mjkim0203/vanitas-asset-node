@@ -2,42 +2,29 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>Vanitas Asset Node - Final</title>
+    <title>Fixed Manual Position</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #333; }
         #container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
-        
         #back-btn {
             position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%);
             padding: 12px 30px; background: white; color: black; 
             border: none; border-radius: 30px; font-weight: bold; cursor: pointer;
             opacity: 0; pointer-events: none; transition: opacity 0.5s; z-index: 100;
-            font-family: 'Courier New', sans-serif; letter-spacing: 1px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
         }
-        #back-btn:hover { background: #f0f0f0; transform: translateX(-50%) scale(1.05); }
         #back-btn.active { opacity: 1; pointer-events: auto; }
-
-        #guide {
-            position: absolute; top: 30px; width: 100%; text-align: center;
-            color: rgba(255, 255, 255, 0.6); pointer-events: none; z-index: 10; 
-            font-family: 'Courier New', sans-serif; font-size: 0.9rem;
-        }
     </style>
 </head>
 <body>
-    <div id="guide">LOADING VANITAS NODE...</div>
     <div id="container"></div>
-    <button id="back-btn">EXIT TERMINAL</button>
+    <button id="back-btn">EXIT MONITOR</button>
 
     <script type="importmap">
-        {
-            "imports": {
-                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
-                "tween": "https://unpkg.com/@tweenjs/tween.js@23.1.1/dist/tween.esm.js"
-            }
-        }
+        { "imports": {
+            "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+            "tween": "https://unpkg.com/@tweenjs/tween.js@23.1.1/dist/tween.esm.js"
+        }}
     </script>
 
     <script type="module">
@@ -47,23 +34,34 @@
         import { CSS3DRenderer, CSS3DObject } from 'three/addons/renderers/CSS3DRenderer.js';
         import * as TWEEN from 'tween';
 
-        // 1. 기본 설정
+        // =========================================================================
+        // ★★★ [여기에 아까 구한 숫자를 적어주세요] ★★★
+        // =========================================================================
+        
+        const MY_POS = { x: -6.00000, y: -14.23000, z: 2.52000 };       // 위치 (Position)
+        const MY_ROT = { x: -3.10000, y: 1.29841, z: 3.10000 };       // 회전 (Rotation)
+        const MY_SCALE = 0.001200;                   // 크기 (Scale)
+
+        // =========================================================================
+
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x222222); // 배경색
+        scene.background = new THREE.Color(0x222222);
 
         const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 5000);
+        // 초기 카메라 위치 (책상 앞)
+        const homeCamPos = new THREE.Vector3(0, 1.5, 4.0);
+        const homeTarget = new THREE.Vector3(0, 0, 0); 
+        camera.position.copy(homeCamPos);
+        camera.lookAt(homeTarget);
+
         const container = document.getElementById('container');
 
-        // WebGL Renderer
         const webglRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-        webglRenderer.setPixelRatio(window.devicePixelRatio); 
         webglRenderer.setSize(window.innerWidth, window.innerHeight);
-        webglRenderer.outputColorSpace = THREE.SRGBColorSpace; 
         webglRenderer.domElement.style.position = 'absolute';
         webglRenderer.domElement.style.zIndex = 0; 
         container.appendChild(webglRenderer.domElement);
 
-        // CSS3D Renderer
         const cssRenderer = new CSS3DRenderer();
         cssRenderer.setSize(window.innerWidth, window.innerHeight);
         cssRenderer.domElement.style.position = 'absolute';
@@ -71,106 +69,64 @@
         cssRenderer.domElement.style.pointerEvents = 'none'; 
         container.appendChild(cssRenderer.domElement);
 
-        const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
+        const controls = new OrbitControls(camera, webglRenderer.domElement); 
+        controls.enableDamping = true;
+
+        const ambientLight = new THREE.AmbientLight(0xffffff, 1.5);
         scene.add(ambientLight);
         const dirLight = new THREE.DirectionalLight(0xffffff, 2);
         dirLight.position.set(5, 10, 5);
         scene.add(dirLight);
 
-        const controls = new OrbitControls(camera, webglRenderer.domElement); 
-        controls.enableDamping = true;
-        controls.minDistance = 0.1;
-        controls.maxDistance = 50;
-
-        const loader = new GLTFLoader();
         let iframeDOM = null;
+        let targetMesh = null;
         let isZoomed = false;
-        let homeTarget = new THREE.Vector3(); 
-        let homeCamPos = new THREE.Vector3();
-        let targetMesh = null; 
 
-        // 2. 모델 로드
+        // 모델 로드
+        const loader = new GLTFLoader();
         loader.load('room.glb', (gltf) => {
             const model = gltf.scene;
             scene.add(model);
             
-            document.getElementById('guide').innerText = "CLICK THE MONITOR TO ACCESS";
-
             // 모델 중앙 정렬
             const box = new THREE.Box3().setFromObject(model);
             const center = box.getCenter(new THREE.Vector3());
-            model.position.sub(center); 
+            model.position.sub(center);
 
-            // 모니터 찾기
-            const screenMesh = model.getObjectByName('imacscreen');
-            
-            if (screenMesh) {
-                // 웹 화면을 모니터 위치에 자동으로 붙이기
-                addWebScreen(screenMesh);
+            // 화면 생성 (무조건 실행)
+            createScreen();
 
-                // 초기 시점 설정 (책상 뷰)
-                const screenPos = new THREE.Vector3();
-                screenMesh.getWorldPosition(screenPos);
-                
-                homeTarget.copy(screenPos);
-                homeTarget.y -= 0.3; 
-                controls.target.copy(homeTarget);
+        }, undefined, (err) => console.error(err));
 
-                // 초기 카메라 위치 (책상 앞)
-                homeCamPos.set(0, 1.5, 4.0); 
-                camera.position.copy(homeCamPos);
-                camera.lookAt(homeTarget);
-            } else {
-                console.error("🚨 'imacscreen'을 찾지 못했습니다. Blender에서 이름을 확인하세요.");
-            }
-
-        }, undefined, (error) => console.error(error));
-
-        // 3. 화면 생성 및 자동 보정
-        function addWebScreen(mesh) {
-            const width = 2000;  
-            const height = 1400; 
-
+        function createScreen() {
+            const width = 2000;
+            const height = 1400;
             const div = document.createElement('div');
-            div.style.width = width + 'px'; 
-            div.style.height = height + 'px'; 
+            div.style.width = width + 'px';
+            div.style.height = height + 'px';
             div.style.backgroundColor = 'white';
-
+            
             const iframe = document.createElement('iframe');
             iframe.src = 'auction.html';
-            iframe.style.width = width + 'px';
-            iframe.style.height = height + 'px';
+            iframe.style.width = '100%';
+            iframe.style.height = '100%';
             iframe.style.border = 'none';
-            iframe.style.pointerEvents = 'none'; // 처음엔 클릭 통과
+            iframe.style.pointerEvents = 'none';
             div.appendChild(iframe);
             iframeDOM = iframe;
 
             const cssObject = new CSS3DObject(div);
-            
-            // ★ [자동 위치 복사] 모니터의 위치와 회전을 그대로 가져옵니다.
-            const worldPos = new THREE.Vector3();
-            const worldQuat = new THREE.Quaternion();
-            mesh.getWorldPosition(worldPos);
-            mesh.getWorldQuaternion(worldQuat);
 
-            cssObject.position.copy(worldPos);
-            cssObject.quaternion.copy(worldQuat);
-            
-            // ★ [자동 스케일]
-            cssObject.scale.set(0.0005, 0.0005, 0.0005); 
+            // ★ [강제 적용] 입력하신 값 적용
+            cssObject.position.set(MY_POS.x, MY_POS.y, MY_POS.z);
+            cssObject.rotation.set(MY_ROT.x, MY_ROT.y, MY_ROT.z);
+            cssObject.scale.set(MY_SCALE, MY_SCALE, MY_SCALE);
 
-            // ★ [자동 방향 보정] 사용자분의 피드백 반영 (90도 세우기 + 좌우 반전 해결)
-            cssObject.rotateX(-Math.PI / 2); 
-            cssObject.rotateY(Math.PI);
-
-            // 겹침 방지 (살짝 앞으로)
-            cssObject.translateZ(0.02);
-            
             scene.add(cssObject);
-            targetMesh = cssObject; // 줌인 대상으로 지정
+            targetMesh = cssObject; // 줌인 타겟 설정
         }
 
-        // 4. 클릭 줌인 (시점 뒤집힘 방지)
+        // 클릭 줌인
         window.addEventListener('click', () => {
             if (isZoomed || !targetMesh) return;
             zoomIn(targetMesh);
@@ -181,45 +137,34 @@
             controls.enabled = false;
 
             const targetPos = target.position.clone();
-
-            // ★ [핵심] 카메라가 현재 보고 있는 방향을 유지하며 직진합니다.
-            // (모니터의 앞뒤가 뒤집혀 있어도 카메라 시점은 뒤집히지 않게 함)
             const currentCamPos = camera.position.clone();
             const direction = currentCamPos.sub(targetPos).normalize();
             
-            // 줌인 거리 (값이 클수록 멀어짐, 0.8 ~ 1.2 추천)
             const distance = 0.9; 
             const camTargetPos = targetPos.clone().add(direction.multiplyScalar(distance));
 
-            // 카메라 이동
             new TWEEN.Tween(camera.position)
                 .to({ x: camTargetPos.x, y: camTargetPos.y, z: camTargetPos.z }, 1500)
                 .easing(TWEEN.Easing.Cubic.InOut)
                 .start();
 
-            // 시선 이동 (화면 정중앙)
             new TWEEN.Tween(controls.target)
                 .to({ x: targetPos.x, y: targetPos.y, z: targetPos.z }, 1500)
                 .easing(TWEEN.Easing.Cubic.InOut)
                 .onComplete(() => {
-                    // 도착 후 웹사이트 조작 허용
                     cssRenderer.domElement.style.pointerEvents = 'auto';
                     if (iframeDOM) iframeDOM.style.pointerEvents = 'auto';
                     document.getElementById('back-btn').classList.add('active');
-                    document.getElementById('guide').style.opacity = '0';
                 })
                 .start();
         }
 
-        // 5. 나가기
         document.getElementById('back-btn').addEventListener('click', (e) => {
             e.stopPropagation();
             isZoomed = false;
             cssRenderer.domElement.style.pointerEvents = 'none';
             if (iframeDOM) iframeDOM.style.pointerEvents = 'none';
-
             document.getElementById('back-btn').classList.remove('active');
-            document.getElementById('guide').style.opacity = '1';
 
             new TWEEN.Tween(camera.position).to(homeCamPos, 1500).easing(TWEEN.Easing.Cubic.InOut).start();
             new TWEEN.Tween(controls.target).to(homeTarget, 1500).easing(TWEEN.Easing.Cubic.InOut)
